@@ -5,7 +5,49 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"sync"
 )
+
+var serverAddrs = []string{"localhost:55555"}
+
+func Start() {
+	inputChan := make(chan string)
+	go GetUserInputInLoop(inputChan)
+	ProcessUserInputInLoop(inputChan)
+}
+
+
+func GetUserInputInLoop(inputChan chan<- string) {
+	fmt.Println(">>> Enter Query: ")
+	for {
+		reader := bufio.NewReader(os.Stdin)
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("An error occurred while reading input. Please try again", err)
+			return
+		}
+
+		inputChan <- input
+	}
+}
+
+func ProcessUserInputInLoop(inputChan <-chan string) {
+	for {
+		query := <-inputChan
+		var wg sync.WaitGroup
+		for _, address := range serverAddrs {
+			wg.Add(1)
+			go func(addr string) {
+				defer wg.Done()
+				RemoteQueryAndPrint(addr, query)
+			}(address)
+		}
+		wg.Wait()
+		fmt.Println(">>> Enter Query: ")
+	}
+}
 
 func RemoteQueryAndPrint(server string, query string) {
 	conn, err := net.Dial("tcp", server)
@@ -35,6 +77,4 @@ func RemoteQueryAndPrint(server string, query string) {
 		}
 		fmt.Printf("Result from [%s] -- %s\n", server, line)
 	}
-	
-
 }

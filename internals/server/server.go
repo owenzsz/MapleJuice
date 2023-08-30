@@ -17,7 +17,6 @@ const (
 )
 
 func Start() {
-	fmt.Println("Server started")
 	server, err := net.Listen("tcp", HOST+":"+PORT)
 	if err != nil {
 		fmt.Printf("Error listening: %v\n", err.Error())
@@ -60,7 +59,6 @@ func processRequest(request string) []byte {
 
 	request = request + " " + LOG_FILE
 	cmd := exec.Command("bash", "-c", request)
-	fmt.Printf("%v\n", cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return []byte("Error executing command.")
