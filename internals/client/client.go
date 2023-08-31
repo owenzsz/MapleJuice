@@ -9,14 +9,13 @@ import (
 	"sync"
 )
 
-var serverAddrs = []string{"localhost:55555"}
+var serverAddrs = []string{"localhost:8080"}
 
 func Start() {
 	inputChan := make(chan string)
 	go GetUserInputInLoop(inputChan)
 	ProcessUserInputInLoop(inputChan)
 }
-
 
 func GetUserInputInLoop(inputChan chan<- string) {
 	fmt.Println(">>> Enter Query: ")
@@ -58,13 +57,13 @@ func RemoteQueryAndPrint(server string, query string) {
 	defer conn.Close()
 
 	request := []byte(query)
-	
+
 	_, err = conn.Write(request)
 	if err != nil {
 		fmt.Printf("Error sending remote query: %v\n", err.Error())
 		return
 	}
-	
+
 	reader := bufio.NewReader(conn)
 	for {
 		line, err := reader.ReadString('\n')
