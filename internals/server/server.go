@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	HOST = "localhost"
-	PORT = "55555"
+	HOST     = "localhost"
+	PORT     = "8080"
 	LOG_FILE = "fake_log.log"
 )
 
@@ -35,7 +35,6 @@ func Start() {
 
 func serveConn(conn net.Conn) {
 	defer conn.Close()
-
 	reader := bufio.NewReader(conn)
 	request, err := reader.ReadString('\n')
 	if err != nil {
@@ -45,7 +44,7 @@ func serveConn(conn net.Conn) {
 		return
 	}
 	request = strings.TrimSuffix(request, "\n")
-	
+
 	response := processRequest(request)
 	_, err = conn.Write(response)
 	if err != nil {
@@ -56,6 +55,10 @@ func serveConn(conn net.Conn) {
 
 func processRequest(request string) []byte {
 	fmt.Println("Received request: ", request)
+	requestComponents := strings.Split(request, " ")
+	if requestComponents[0] != "grep" {
+		return []byte("Invalid request. Please try again.")
+	}
 
 	request = request + " " + LOG_FILE
 	cmd := exec.Command("bash", "-c", request)
