@@ -59,8 +59,6 @@ func processRequest(request string) []byte {
 	if requestComponents[0] != "grep" {
 		return []byte("Invalid request. Please try again.\n")
 	}
-
-	request = request + " " + LOG_FILE
 	cmd := exec.Command("bash", "-c", request)
 	out, err := cmd.Output()
 	if err != nil {

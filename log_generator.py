@@ -2,6 +2,7 @@ import random
 import datetime
 import time
 import string
+import socket
 
 
 # List of possible service names
@@ -22,6 +23,9 @@ def generate_log_entry():
 num_entries = 10
 
 with open("fake_log.log", "w") as f:
+    f.write("Test_Log" + "\n")
+    f.write("CS_425 MP1" + "\n")
+    f.write("Host name is: " + socket.gethostname() + "\n")
     for _ in range(num_entries):
         log_entry = generate_log_entry()
         f.write(log_entry + "\n")
