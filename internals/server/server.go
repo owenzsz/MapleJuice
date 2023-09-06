@@ -57,12 +57,12 @@ func processRequest(request string) []byte {
 	fmt.Println("Received request: ", request)
 	requestComponents := strings.Split(request, " ")
 	if requestComponents[0] != "grep" {
-		return []byte("Invalid request. Please try again.\n")
+		return []byte("Error: Invalid request. Please try again.\n")
 	}
 	cmd := exec.Command("bash", "-c", request)
 	out, err := cmd.Output()
 	if err != nil {
-		return []byte("Error executing command.\n")
+		return []byte("Error: Error executing command.\n")
 	}
 
 	return append(out, '\n')

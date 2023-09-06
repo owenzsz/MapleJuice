@@ -55,6 +55,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 
 		// Spawn goroutines for parallel querying
 		var wg sync.WaitGroup
+		startTime := time.Now()
 		for i, address := range SERVER_ADDRS {
 			wg.Add(1)
 			go func(__i int, addr string) {
@@ -67,6 +68,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 		// Concatenate gathered statistics and print out them
 		fmt.Println("\n========================== Statistics ==========================")
 		totalNumEntries := 0
+		latency := time.Now().Sub(startTime).Milliseconds()
 		for _, stat := range stats {
 			if stat.numEntries == 0 {
 				continue
@@ -75,7 +77,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			totalNumEntries += stat.numEntries
 		}
 		fmt.Printf("In total, fetched %v matched line(s)\n", totalNumEntries)
-
+		fmt.Printf("The latencty of execution is %v ms\n", latency)
 		fmt.Println("\n>>> Enter Query: ")
 	}
 }
@@ -107,7 +109,7 @@ func RemoteQueryAndPrint(server string, query string) Stat {
 			fmt.Println("Error reading response:", err)
 			return Stat{"", 0}
 		}
-		if (len(line) >= 7 && string(line[:7]) == "invalid") ||
+		if (len(line) >= 5 && string(line[:5]) == "Error") ||
 			(len(line) == 1 && line[0] == '\n') {
 			break
 		}
