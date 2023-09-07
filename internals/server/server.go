@@ -8,12 +8,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 const (
 	HOST     = "0.0.0.0"
 	PORT     = "8080"
-	LOG_FILE = "fake_log.log"
 )
 
 func Start() {
@@ -59,11 +59,15 @@ func processRequest(request string) []byte {
 	if requestComponents[0] != "grep" {
 		return []byte("Error: Invalid request. Please try again.\n")
 	}
+	startTime := time.Now()
 	cmd := exec.Command("bash", "-c", request)
 	out, err := cmd.Output()
 	if err != nil {
 		return []byte("Error: Error executing command.\n")
 	}
-
-	return append(out, '\n')
+	latency := time.Since(startTime).Milliseconds()
+	latencyReport := []byte(fmt.Sprintf("Query took %v ms\n", latency))
+	out = append(out, latencyReport...)
+	out = append(out, '\n')
+	return out
 }

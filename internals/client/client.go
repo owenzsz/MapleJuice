@@ -60,7 +60,9 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			wg.Add(1)
 			go func(__i int, addr string) {
 				defer wg.Done()
-				stats[__i] = RemoteQueryAndPrint(addr+":"+PORT, query)
+				// Craft grep command for each VM with corresponding log file name
+				queryLogFile := fmt.Sprintf("%v ./vm%v.log\n", query[:len(query)-1], __i+1)
+				stats[__i] = RemoteQueryAndPrint(addr+":"+PORT, queryLogFile)
 			}(i, address)
 		}
 		wg.Wait()
@@ -68,7 +70,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 		// Concatenate gathered statistics and print out them
 		fmt.Println("\n========================== Statistics ==========================")
 		totalNumEntries := 0
-		latency := time.Now().Sub(startTime).Milliseconds()
+		latency := time.Since(startTime).Milliseconds()
 		for _, stat := range stats {
 			if stat.numEntries == 0 {
 				continue
@@ -76,8 +78,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			fmt.Println(stat.response)
 			totalNumEntries += stat.numEntries
 		}
-		fmt.Printf("In total, fetched %v matched line(s)\n", totalNumEntries)
-		fmt.Printf("The latencty of execution is %v ms\n", latency)
+		fmt.Printf("In total, fetched %v matched line(s). End-to-end latency: %v ms\n", totalNumEntries, latency)
 		fmt.Println("\n>>> Enter Query: ")
 	}
 }
@@ -99,6 +100,7 @@ func RemoteQueryAndPrint(server string, query string) Stat {
 	}
 
 	numEntries := 0
+	var latencyReport string
 	reader := bufio.NewReader(conn)
 	for {
 		line, err := reader.ReadString('\n')
@@ -114,10 +116,15 @@ func RemoteQueryAndPrint(server string, query string) Stat {
 			break
 		}
 
-		numEntries++
-		fmt.Printf("<<< Result from [%s] -- %s", server, line)
+		
+		if (len(line) >= 5 && string(line[:5]) == "Query") {
+			latencyReport = line[:len(line)-1] // discarding the last \n character
+		} else {
+			numEntries++
+			fmt.Printf("<<< Result from [%s] -- %s", server, line)
+		}
 	}
 
-	stat := fmt.Sprintf("from %s --- %v line(s) matched", server, numEntries)
+	stat := fmt.Sprintf("from %s --- %v line(s) matched. Latency: %s", server, numEntries, latencyReport)
 	return Stat{stat, numEntries}
 }
