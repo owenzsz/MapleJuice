@@ -17,7 +17,10 @@ freq_1 = "payment"                                                              
 freq_2 = "WARNING"                                                                  # frequent
 regex_1 = r"[0-9]+-[0-9]+-[0-9]+ "                                                  # frequent
 regex_2 = r"[Aa][pP][pP][lL][eE] [mM][aA][cC][iI][nN][tT][oO][sS][hH] (abc|123)"    # frequent
-patterns = [infreq_1, infreq_2, freq_1, freq_2, regex_1, regex_2]
+only_once_1 = "fa23-cs425-1802.cs.illinois.edu"                                     # unique to 1802
+only_once_2 = "fa23-cs425-1803.cs.illinois.edu"                                     # unique to 1803
+all_machines = "CS_425 MP1"                                                         # presented on all VMs
+patterns = [infreq_1, infreq_2, freq_1, freq_2, regex_1, regex_2, only_once_1, only_once_2, all_machines]
 
 # List of possible service names
 services = ['web', 'database', 'authentication', 'email', 'payment']
@@ -92,8 +95,14 @@ num_entries = 2000
 for i in range(1, 11):
     with open(f"./fake_log{i}.log", "w+") as f:
         f.write("Test_Log" + "\n")
-        f.write("CS_425 MP1" + "\n")
-        f.write("Host name is: " + f"fa23-cs425-18{str(i).zfill(2)}.cs.illinois.edu" + "\n")
+
+        title = "CS_425 MP1"
+        f.write(title + "\n")
+        count_matched_occurrances(i, title)
+        
+        hostName = f"fa23-cs425-18{str(i).zfill(2)}.cs.illinois.edu"
+        f.write("Host name is: " + hostName + "\n")
+        count_matched_occurrances(i, hostName)
         for _ in range(num_entries):
             string_written = ""
             # About 5% chance to execute this branch
@@ -121,9 +130,10 @@ for i in range(1, 11):
 # For each machine, qeury each pattern and compare with locally calculated counts
 for i in range(1, 11):
     num_all_mached_patterns = 0
-    for pattern in patterns:
+    current_VM_reference_stat = vm_reference_stats[i-1]
+    for pattern in current_VM_reference_stat:
         match_count = 0
-        reference_count = vm_reference_stats[i-1][pattern]
+        reference_count = current_VM_reference_stat[pattern]
 
         # Create a TCP/IP socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -154,7 +164,7 @@ for i in range(1, 11):
         finally:
             sock.close()
     # print whether a VM gives all the correct counts
-    if num_all_mached_patterns == len(patterns):
+    if num_all_mached_patterns == len(current_VM_reference_stat.keys()):
         print(f"VM{i} gives all correct counts\n")
 
         

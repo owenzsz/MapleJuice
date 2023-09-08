@@ -6,8 +6,10 @@ import (
 	"testing"
 )
 
+// common components for all test to test serveConn
 func runServeConnTest(t *testing.T, request string, conditionFunc func(string) bool, expectedResponse string) {
 	out := make([]byte, 1024)
+	//use net.pipe() to mock conn
 	read, write := net.Pipe()
 	go serveConn(read)
 	defer write.Close()
@@ -50,6 +52,7 @@ func TestServeConnNonExistRequest(t *testing.T) {
 	runServeConnTest(t, "grep TEST_LOG ../../fake_log.log \n", conditionFunc, "Expected the response to not contain Test_Log")
 }
 
+// unit test for the process request function
 func TestProcessRequest(t *testing.T) {
 	existWordRequest := "grep CS_425 ../../fake_log.log"
 	existWordResponse := processRequest(existWordRequest)

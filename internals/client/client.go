@@ -28,7 +28,9 @@ type Stat struct {
 
 func Start() {
 	inputChan := make(chan string)
+	//start another goroutine to keep reading user input in a loop
 	go GetUserInputInLoop(inputChan)
+	//process and read user input. The two goroutines will communicate via a channel
 	ProcessUserInputInLoop(inputChan)
 }
 
@@ -42,28 +44,30 @@ func GetUserInputInLoop(inputChan chan<- string) {
 			fmt.Println("An error occurred while reading input. Please try again", err)
 			return
 		}
-
+		//send the user input to inputChan
 		inputChan <- input
 	}
 }
 
 func ProcessUserInputInLoop(inputChan <-chan string) {
 	for {
+		//read the user input from inputChan
 		query := <-inputChan
 
 		stats := make([]Stat, len(SERVER_ADDRS))
 
 		// Spawn goroutines for parallel querying
-		var wg sync.WaitGroup
+		var wg sync.WaitGroup // need to wait until all requests are received to proceed to printing summary stats
 		startTime := time.Now()
 		for i, address := range SERVER_ADDRS {
 			wg.Add(1)
 			go func(__i int, addr string) {
 				defer wg.Done()
+				//send query to all VMs
 				stats[__i] = RemoteQueryAndPrint(addr+":"+PORT, query)
 			}(i, address)
 		}
-		wg.Wait()
+		wg.Wait() //barrier
 
 		// Concatenate gathered statistics and print out them
 		fmt.Println("\n========================== Statistics ==========================")
@@ -109,13 +113,13 @@ func RemoteQueryAndPrint(server string, query string) Stat {
 			fmt.Println("Error reading response:", err)
 			return Stat{"", 0}
 		}
+		//process program-defined error using string matching (i.e. invalid requests)
 		if (len(line) >= 5 && string(line[:5]) == "Error") ||
 			(len(line) == 1 && line[0] == '\n') {
 			break
 		}
-
-		
-		if (len(line) >= 5 && string(line[:5]) == "Query") {
+		//process latency report using string matching
+		if len(line) >= 5 && string(line[:5]) == "Query" {
 			latencyReport = line[:len(line)-1] // discarding the last \n character
 		} else {
 			numEntries++
