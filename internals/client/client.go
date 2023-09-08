@@ -18,7 +18,7 @@ var (
 		"fa23-cs425-1807.cs.illinois.edu", "fa23-cs425-1808.cs.illinois.edu",
 		"fa23-cs425-1809.cs.illinois.edu", "fa23-cs425-1810.cs.illinois.edu"}
 
-	PORT = "8080"
+	PORT = "55555"
 )
 
 type Stat struct {
@@ -60,9 +60,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			wg.Add(1)
 			go func(__i int, addr string) {
 				defer wg.Done()
-				// Craft grep command for each VM with corresponding log file name
-				queryLogFile := fmt.Sprintf("%v ./vm%v.log\n", query[:len(query)-1], __i+1)
-				stats[__i] = RemoteQueryAndPrint(addr+":"+PORT, queryLogFile)
+				stats[__i] = RemoteQueryAndPrint(addr+":"+PORT, query)
 			}(i, address)
 		}
 		wg.Wait()

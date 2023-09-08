@@ -13,7 +13,7 @@ import (
 
 const (
 	HOST     = "0.0.0.0"
-	PORT     = "8080"
+	PORT     = "55555"
 )
 
 func Start() {
@@ -65,7 +65,9 @@ func processRequest(request string) []byte {
 	if err != nil {
 		return []byte("Error: Error executing command.\n")
 	}
+
 	latency := time.Since(startTime).Milliseconds()
+
 	latencyReport := []byte(fmt.Sprintf("Query took %v ms\n", latency))
 	out = append(out, latencyReport...)
 	out = append(out, '\n')
