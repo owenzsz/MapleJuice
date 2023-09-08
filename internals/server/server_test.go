@@ -31,7 +31,7 @@ func runServeConnTest(t *testing.T, request string, conditionFunc func(string) b
 }
 
 func TestServeConnInvalidRequest(t *testing.T) {
-	expectedResponse := "Invalid request. Please try again.\n"
+	expectedResponse := "Error: Invalid request. Please try again.\n"
 	conditionFunc := func(out string) bool {
 		return out == expectedResponse
 	}
