@@ -1,5 +1,9 @@
 # CS425-MP1
 
+## Environment
+golang 1.21
+python 3.6.8 (package needed: rstr)
+
 ## To run
 1. Power on all VMs, change directory to the root folder of this project (named cs425-mp1)
 2. On all VMs, run `go run cmd/cs425-mp1/main.go`. The process acts as both a server (executing grep commands) and a client (sending remote grep commands)
