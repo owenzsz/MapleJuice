@@ -6,3 +6,4 @@
 3. To run the demo: enter queries in the any random VM terminal, you should see the grep command being executed and the result is printed out to stdout together with a set of summary statistics of matched lines and latency report. 
 4. To run the unit test: go to the root directory of this project and run `go test ./internals/server` to run the unit tests for some of our server functions. We used mocked network connections instead of real grep requsts in unit tests
 5. To run the functional test: go to the root directory of this project and run `python3 log_test.py`. This will run a more comprehensive test where we generate logs, distribute logs to each VM, and run our distributed grep program to see if the result matches our expectations. 
+6. The report is located at the root directory of this project. The name of the file is: CS-425 MP1 Report.pdf
