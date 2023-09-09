@@ -1,8 +1,8 @@
 # CS425-MP1
 
 ## Environment
-golang 1.21
-python 3.6.8 (package needed: rstr)
+* golang 1.21
+* python 3.6.8 (package needed: rstr)
 
 ## To run
 1. Power on all VMs, change directory to the root folder of this project (named cs425-mp1)
