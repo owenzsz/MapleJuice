@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"cs425-mp1/internals/client"
-	"cs425-mp1/internals/server"
+	"cs425-mp/internals/logger/client"
+	"cs425-mp/internals/logger/server"
 )
 
 func main() {
