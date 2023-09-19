@@ -1,18 +1,21 @@
 package failureDetector
 
 import (
+	pb "cs425-mp/protobuf"
 	"fmt"
+	"math/rand"
+	"os"
 	"sync"
 	"time"
 )
 
 const (
-	GOSSIP_RATE         = 1000 * time.Millisecond // 1000ms
-	T_FAIL              = 2                       // 2 seconds
-	T_CLEANUP           = 3                       // 3 seconds
+	INTRODUCER_ADDRESS  = "fa23-cs425-1801.cs.illinois.edu:55556"
+	GOSSIP_RATE         = 2000 * time.Millisecond // 2000ms
+	T_FAIL              = 4 * time.Second         // 3 seconds
+	T_CLEANUP           = 10 * time.Second        // 10 seconds
 	NUM_NODES_TO_GOSSIP = 3                       //number of nodes to gossip to
 	PORT                = "55556"
-	INTRODUCER_PORT     = "55557"
 	HOST                = "0.0.0.0"
 )
 
@@ -25,6 +28,19 @@ const (
 	Failed
 )
 
+func (e StatusType) String() string {
+	switch e {
+	case Alive:
+		return "Alive"
+	case Suspected:
+		return "Suspected"
+	case Failed:
+		return "Failed"
+	default:
+		return "Unknown status type. Please check StatusType enum"
+	}
+}
+
 const (
 	Join MessageType = iota
 	Leave
@@ -32,17 +48,176 @@ const (
 )
 
 var (
-	nodeList           = make(map[string]*Node)
-	USE_SUSPICION      = false
-	MESSAGE_DROP_RATE  = 0.0
-	LOCAL_NODE_KEY     = getLocalNodeName() + fmt.Sprint(time.Now().Unix())
-	nodeListLock       = &sync.Mutex{}
-	INTRODUCER_ADDRESS = "fa23-cs425-1801.cs.illinois.edu"
+	NodeInfoList      = make(map[string]*Node)
+	USE_SUSPICION     = false
+	MESSAGE_DROP_RATE = 0.0
+	LOCAL_NODE_KEY    = ""
+	NodeListLock      = &sync.Mutex{}
 )
 
 type Node struct {
-	Address          string     `json:"Address"`
-	HeartbeatCounter int        `json:"heartbeatCounter"`
-	Status           StatusType `json:"status"`
-	TimeStamp        int        `json:"timeStamp"`
+	NodeAddr  string
+	SeqNo     int32
+	Status    StatusType
+	TimeStamp time.Time
+}
+
+func init() {
+	localNodeName, err := getLocalNodeAddress()
+	if err != nil {
+		fmt.Println("Unable to get local network address")
+		os.Exit(1)
+	}
+	LOCAL_NODE_KEY = localNodeName + ":" + time.Now().Format("2017-09-07 17:06:04.000000")
+}
+
+// update current membership list with incoming list
+func updateMembershipList(receivedMembershipList map[string]*Node) {
+	for key, receivedNode := range receivedMembershipList {
+		// In response to being suspected by someone, increase the suspicion incarnation number of self
+		if key == LOCAL_NODE_KEY && receivedNode.Status == Suspected {
+			fmt.Println("Being suspected, increasing incarnation number")
+			self, ok := NodeInfoList[LOCAL_NODE_KEY]
+			if !ok {
+				fmt.Println("Self is not found in local membership list when updating the list")
+				os.Exit(1)
+			}
+			self.SeqNo++
+			continue
+		}
+		// Do not process suspected node when not in SUSPICION mode
+		if !USE_SUSPICION && receivedNode.Status == Suspected {
+			continue
+		}
+		localInfo, ok := NodeInfoList[key]
+		// Add the node to membership list if never seen before
+		if !ok {
+			fmt.Printf("New node (%v) adding it to membership list\n", key)
+			NodeInfoList[key] = receivedNode
+			continue
+		}
+		// The status of a failed node should never be updated after it is deemed FAILED locally
+		if localInfo.Status == Failed {
+			continue
+		}
+
+		// Up to this point, The incoming node statuses can only be either ALIVE or SUSPECTED
+		// , and the local statuses for the node can only be either ALIVE or SUSPECTED as well.
+		if localInfo.SeqNo < receivedNode.SeqNo {
+			fmt.Printf("Incrementing counter for node (%v), status: %v -> %v, seqNum: %v -> %v\n", key, localInfo.Status, receivedNode.Status, localInfo.SeqNo, receivedNode.SeqNo)
+			localInfo.SeqNo = receivedNode.SeqNo
+			localInfo.TimeStamp = time.Now()
+			localInfo.Status = receivedNode.Status
+		}
+	}
+}
+
+func nodeInfoListToPB() *pb.NodeInfoList {
+	pbNodeList := &pb.NodeInfoList{}
+	pbNodeList.Rows = []*pb.NodeInfoRow{}
+	for nodeID, nodeInfo := range NodeInfoList {
+
+		var _status pb.NodeInfoRow_NodeStatus
+		switch nodeInfo.Status {
+		case Alive:
+			_status = pb.NodeInfoRow_Alive
+		case Suspected:
+			// Suspected node is not communcated to peers if self is not using SUSPICION mechanism
+			if !USE_SUSPICION {
+				continue
+			}
+			_status = pb.NodeInfoRow_Suspected
+		case Failed:
+			// FAILED node should never be communicated to peers over the network
+			continue
+		}
+
+		pbNodeList.Rows = append(pbNodeList.Rows, &pb.NodeInfoRow{
+			NodeID: nodeID,
+			SeqNum: nodeInfo.SeqNo,
+			Status: _status,
+		})
+	}
+
+	return pbNodeList
+}
+
+func pBToNodeInfoList(incomingNodeList *pb.NodeInfoList) map[string]*Node {
+	newNodeList := make(map[string]*Node)
+	for _, row := range incomingNodeList.GetRows() {
+		var _status StatusType
+		switch row.Status {
+		case pb.NodeInfoRow_Alive:
+			_status = Alive
+		case pb.NodeInfoRow_Suspected:
+			_status = Suspected
+		case pb.NodeInfoRow_Failed:
+			_status = Failed
+		}
+
+		newNodeList[row.NodeID] = &Node{
+			NodeAddr:  GetAddrFromNodeKey(row.NodeID),
+			SeqNo:     row.SeqNum,
+			Status:    _status,
+			TimeStamp: time.Now(),
+		}
+	}
+
+	return newNodeList
+}
+
+func newMessageOfType(messageType pb.GroupMessage_MessageType) *pb.GroupMessage {
+	return &pb.GroupMessage{
+		Type:         messageType,
+		NodeInfoList: nodeInfoListToPB(),
+	}
+}
+
+func newResponseToJoin(newcomerKey string) *pb.GroupMessage {
+	return &pb.GroupMessage{
+		Type:         pb.GroupMessage_GOSSIP,
+		NodeInfoList: randomPeersToPB(newcomerKey),
+	}
+}
+
+func randomPeersToPB(newcomerKey string) *pb.NodeInfoList {
+	pbNodeList := &pb.NodeInfoList{}
+	pbNodeList.Rows = []*pb.NodeInfoRow{}
+
+	keyPool := make([]string, 0)
+	for nodeID, _ := range NodeInfoList {
+		if nodeID != newcomerKey {
+			keyPool = append(keyPool, nodeID)
+		}
+	}
+	rand.Shuffle(len(keyPool), func(i, j int) { keyPool[i], keyPool[j] = keyPool[j], keyPool[i] })
+
+	numPeersToSend := min(NUM_NODES_TO_GOSSIP, len(keyPool))
+
+	for _, nodeID := range keyPool[:numPeersToSend] {
+		nodeInfo := NodeInfoList[nodeID]
+
+		var _status pb.NodeInfoRow_NodeStatus
+		switch nodeInfo.Status {
+		case Alive:
+			_status = pb.NodeInfoRow_Alive
+		case Suspected:
+			// Suspected node is not communcated to peers if self is not using SUSPICION mechanism
+			if !USE_SUSPICION {
+				continue
+			}
+			_status = pb.NodeInfoRow_Suspected
+		case Failed:
+			// FAILED node should never be communicated to peers over the network
+			continue
+		}
+
+		pbNodeList.Rows = append(pbNodeList.Rows, &pb.NodeInfoRow{
+			NodeID: nodeID,
+			SeqNum: nodeInfo.SeqNo,
+			Status: _status,
+		})
+	}
+
+	return pbNodeList
 }
