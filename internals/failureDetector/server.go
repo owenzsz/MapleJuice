@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	pb "cs425-mp/protobuf"
 
@@ -20,10 +21,11 @@ func HandleGroupMessages() {
 	defer conn.Close()
 	buffer := make([]byte, 4096)
 	for {
+		conn.SetWriteDeadline(time.Now().Add(CONN_TIMEOUT))
 		n, from, err := conn.ReadFrom(buffer)
 		if err != nil {
 			fmt.Printf("Error reading: %v\n", err.Error())
-			os.Exit(1)
+			continue
 		}
 		groupMessage := &pb.GroupMessage{}
 		err = proto.Unmarshal(buffer[:n], groupMessage)
@@ -65,6 +67,7 @@ func processJoinMessage(conn net.PacketConn, from net.Addr, message *pb.GroupMes
 }
 
 func processGossipMessage(conn net.PacketConn, message *pb.GroupMessage) {
+	// fmt.Println("Processing gossip message")
 	incomingNodeList := pBToNodeInfoList(message.NodeInfoList)
 	NodeListLock.Lock()
 	updateMembershipList(incomingNodeList)

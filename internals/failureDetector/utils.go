@@ -9,9 +9,13 @@ import (
 
 // helper function to randomly select B nodes to gossip to
 func randomlySelectNodes(num int) []*Node {
-	num = min(num, len(NodeInfoList))
+	num = min(num, len(NodeInfoList)-1)
 	keys := make([]string, 0, len(NodeInfoList))
 	for k := range NodeInfoList {
+		// do not add self to target list
+		if k == LOCAL_NODE_KEY {
+			continue
+		}
 		keys = append(keys, k)
 	}
 
