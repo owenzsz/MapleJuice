@@ -15,51 +15,56 @@ import (
 func PeriodicUpdate() {
 	for {
 		NodeListLock.Lock()
-		CheckFailure()
-		SendGossip()
+		gossip := NodeStatusUpdateAndNewGossip()
 		NodeListLock.Unlock()
+
+		SendGossip(gossip)
 		time.Sleep(GOSSIP_RATE)
 	}
 }
 
-func CheckFailure() {
+func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
+	// fmt.Println("Checking failure")
 	for key, node := range NodeInfoList {
 		if key == LOCAL_NODE_KEY {
 			node.TimeStamp = time.Now()
 			node.SeqNo++
 			continue
 		}
+		sinceLastTimestamp := time.Since(node.TimeStamp)
 		switch node.Status {
 		case Alive:
-			if time.Since(node.TimeStamp) > T_FAIL {
+			if sinceLastTimestamp > T_FAIL {
 				if USE_SUSPICION {
 					fmt.Println("Marking ", key, " as suspected")
 					node.Status = Suspected
 					node.TimeStamp = time.Now()
 				} else {
-					fmt.Println("Marking ", key, " as failed")
+					fmt.Println("Marking ", key, " as failed, overtime for ", sinceLastTimestamp.Seconds()-T_FAIL.Seconds(), " time")
 					node.Status = Failed
 					node.TimeStamp = time.Now()
 				}
 			}
 		case Failed:
-			if time.Since(node.TimeStamp) > T_CLEANUP {
+			if sinceLastTimestamp > T_CLEANUP {
 				fmt.Println("Deleting node: ", key)
 				delete(NodeInfoList, key)
 			}
 		case Suspected:
-			if !USE_SUSPICION || time.Since(node.TimeStamp) > T_FAIL {
+			if !USE_SUSPICION || sinceLastTimestamp > T_FAIL {
 				fmt.Println("Marking ", key, " as failed")
 				node.Status = Failed
 				node.TimeStamp = time.Now()
 			}
 		}
 	}
+	gossip := newMessageOfType(pb.GroupMessage_GOSSIP)
+	return gossip
 }
 
 // send gossip to other nodes
-func SendGossip() {
-	message := newMessageOfType(pb.GroupMessage_GOSSIP)
+func SendGossip(message *pb.GroupMessage) {
+	// fmt.Println("Sending gossips")
 
 	messageBytes, err := proto.Marshal(message)
 	if err != nil {
@@ -71,6 +76,7 @@ func SendGossip() {
 }
 
 func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
+	// fmt.Println("Sending gossips to nodes")
 	var wg sync.WaitGroup
 	for _, node := range selectedNodes {
 		wg.Add(1)
@@ -82,11 +88,12 @@ func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 			if randomNumber > 1-MESSAGE_DROP_RATE {
 				return
 			}
-			conn, err := net.Dial("udp", address)
+			conn, err := net.DialTimeout("udp", address, CONN_TIMEOUT)
 			if err != nil {
-				fmt.Println("Error dialing UDP: ", err)
+				// fmt.Println("Error dialing UDP: ", err)
 				return
 			}
+			conn.SetWriteDeadline(time.Now().Add(CONN_TIMEOUT))
 			defer conn.Close()
 			_, err = conn.Write(gossip)
 			if err != nil {
