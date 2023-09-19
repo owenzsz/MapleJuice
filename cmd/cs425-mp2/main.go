@@ -8,25 +8,30 @@ import (
 
 func main() {
 	fmt.Println("Failure Detector Started")
-	failureDetector.InitializeNodeList()
+	err := failureDetector.JoinGroupAndInit()
+	if err != nil {
+		fmt.Printf("Cannot join the group: %v\n", err.Error())
+		return
+	}
+
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		failureDetector.HandleRequests()
+		failureDetector.HandleExternalSignals()
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		failureDetector.StartGossipDetector()
+		failureDetector.HandleGroupMessages()
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		failureDetector.StartPeriodicGossipSending()
+		failureDetector.PeriodicUpdate()
 	}()
 
 	wg.Wait()

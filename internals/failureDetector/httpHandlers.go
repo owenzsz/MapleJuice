@@ -28,7 +28,7 @@ func messageDropRateHandler(w http.ResponseWriter, r *http.Request) {
 	MESSAGE_DROP_RATE = parsedValue
 }
 
-func HandleRequests() {
+func HandleExternalSignals() {
 	http.HandleFunc("/toggleSuspicion", toggleSuspicionHandler)
 	http.HandleFunc("/updateMessageDropRate", messageDropRateHandler)
 	http.ListenAndServe("0.0.0.0:8080", nil)

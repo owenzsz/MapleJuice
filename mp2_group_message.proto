@@ -1,0 +1,30 @@
+syntax = "proto3";
+package cs425_mp2;
+
+option go_package = "./protobuf";
+
+message NodeInfoRow {
+  enum NodeStatus {
+    Alive = 0;
+    Suspected = 1;
+    Failed = 2; // TODO: might delete it since it should never be sent 
+  }
+
+  string nodeID = 1;
+  int32 seqNum = 2;
+  NodeStatus status = 3;
+}
+
+message NodeInfoList {
+  repeated NodeInfoRow rows = 1;
+}
+
+message GroupMessage {
+  enum MessageType {
+    JOIN = 0;
+    GOSSIP = 2;
+  }
+
+  MessageType type = 1;
+  NodeInfoList node_info_list = 2;
+}
