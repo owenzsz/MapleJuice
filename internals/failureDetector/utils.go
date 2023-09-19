@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-
-
 // helper function to randomly select B nodes to gossip to
 func randomlySelectNodes(num int) []*Node {
 	num = min(num, len(NodeInfoList))
@@ -39,11 +37,17 @@ func getLocalNodeAddress() (string, error) {
 	return key, nil
 }
 
-
 // Given a nodeKey in format of [hostname]:[port]:[timestamp], extract the [hostname]:[port] part as a string
 func GetAddrFromNodeKey(nodeKey string) string {
 	idSplitted := strings.Split(nodeKey, ":")
 	peer_name := idSplitted[0]
 	peer_port := idSplitted[1]
 	return peer_name + ":" + peer_port
+}
+
+func min(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
