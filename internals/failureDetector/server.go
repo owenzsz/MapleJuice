@@ -31,14 +31,14 @@ func HandleGroupMessages() {
 			fmt.Printf("Error unmarshalling group message: %v\n", err.Error())
 		}
 		switch groupMessage.Type {
-			case pb.GroupMessage_JOIN:
-				if INTRODUCER_ADDRESS != GetAddrFromNodeKey(LOCAL_NODE_KEY) {
-					continue
-				}
-				processJoinMessage(conn, from, groupMessage)
+		case pb.GroupMessage_JOIN:
+			if INTRODUCER_ADDRESS != GetAddrFromNodeKey(LOCAL_NODE_KEY) {
+				continue
+			}
+			processJoinMessage(conn, from, groupMessage)
 
-			case pb.GroupMessage_GOSSIP:
-				go processGossipMessage(conn, groupMessage)
+		case pb.GroupMessage_GOSSIP:
+			go processGossipMessage(conn, groupMessage)
 			// TODO: add Leave message
 		}
 	}
