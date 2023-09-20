@@ -3,6 +3,7 @@ package failureDetector
 import (
 	"bufio"
 	pb "cs425-mp/protobuf"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -39,6 +40,10 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			handleLeave()
 		case "rejoin":
 			handleRejoin()
+		case "list_mem":
+			showMembershipList()
+		case "list_self":
+			showSelfID()
 		default:
 			fmt.Println("Error: input command not supported.")
 		}
@@ -52,13 +57,14 @@ func handleLeave() {
 		return
 	}
 	NodeListLock.Lock()
-	NodeInfoList[LOCAL_NODE_KEY].Status = Failed
+	NodeInfoList[LOCAL_NODE_KEY].Status = Left 
 	NodeInfoList[LOCAL_NODE_KEY].SeqNo++
 	leaveMessage := newMessageOfType(pb.GroupMessage_LEAVE)
-	SendGossip(leaveMessage)
+	selectedNodes := randomlySelectNodes(NUM_NODES_TO_GOSSIP)
+	SendGossip(leaveMessage, selectedNodes)
 	NodeInfoList = nil
-	NodeListLock.Unlock()
 	LOCAL_NODE_KEY = ""
+	NodeListLock.Unlock()
 }
 
 func handleRejoin() {
@@ -72,4 +78,29 @@ func handleRejoin() {
 		fmt.Printf("Cannot join the group: %v\n", err.Error())
 		return
 	}
+}
+
+func showMembershipList() {
+	NodeListLock.Lock()
+	currList := make(map[string]Node)
+	for key, value := range NodeInfoList {
+		currList[key] = *value
+	}
+	NodeListLock.Unlock()
+	
+	list, err := json.MarshalIndent(currList, "", "  ")
+	if err != nil {
+		fmt.Println("failed to pretty-print the membership list")
+	}
+	fmt.Println("***************** Current Membership List *****************")
+	fmt.Println(string(list))
+	fmt.Println("***********************************************************")
+}
+
+func showSelfID() {
+	NodeListLock.Lock()
+	id := LOCAL_NODE_KEY
+	NodeListLock.Unlock()
+
+	fmt.Println(">>> ", id)
 }

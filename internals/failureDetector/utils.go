@@ -20,16 +20,21 @@ func randomlySelectNodes(num int) []*Node {
 	}
 
 	rand.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
-	selectedNodes := make([]*Node, 0, num)
-	for i := 0; i < num; i++ {
-		selectedNodes = append(selectedNodes, NodeInfoList[keys[i]])
+	selectedNodes := make([]*Node, 0, len(keys))
+	for _, nodeKey := range keys {
+		nodeInfo := NodeInfoList[nodeKey]
+		if nodeInfo.Status == Failed || nodeInfo.Status == Left || nodeInfo.Status == Suspected {
+			continue
+		}
+		selectedNodes = append(selectedNodes, nodeInfo)
+		num--
+		if num == 0 {
+			break
+		}
 	}
 	return selectedNodes
 }
 
-// func getLocalNodeFromNodeList() *Node {
-// 	return NodeInfoList[LOCAL_NODE_KEY]
-// }
 
 func getLocalNodeAddress() (string, error) {
 	hostname, err := os.Hostname()

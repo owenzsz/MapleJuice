@@ -8,6 +8,7 @@ message NodeInfoRow {
     Alive = 0;
     Suspected = 1;
     Failed = 2; // TODO: might delete it since it should never be sent 
+    Left = 3;
   }
 
   string nodeID = 1;

@@ -14,12 +14,16 @@ import (
 
 func PeriodicUpdate() {
 	for {
-		spinOnFailedStatus()
+		// If local is not started or is still in LEFT status, do nothing
+		if LOCAL_NODE_KEY == "" {
+			time.Sleep(GOSSIP_RATE)
+			continue
+		}	
 		NodeListLock.Lock()
 		gossip := NodeStatusUpdateAndNewGossip()
+		selectedNodes := randomlySelectNodes(NUM_NODES_TO_GOSSIP)
 		NodeListLock.Unlock()
-
-		SendGossip(gossip)
+		SendGossip(gossip, selectedNodes)
 		time.Sleep(GOSSIP_RATE)
 	}
 }
@@ -46,7 +50,7 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 					node.TimeStamp = time.Now()
 				}
 			}
-		case Failed:
+		case Failed, Left:
 			if sinceLastTimestamp > T_CLEANUP {
 				fmt.Println("Deleting node: ", key)
 				delete(NodeInfoList, key)
@@ -64,17 +68,15 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 }
 
 // send gossip to other nodes
-func SendGossip(message *pb.GroupMessage) {
+func SendGossip(message *pb.GroupMessage, targets []*Node) {
 	// fmt.Println("Sending gossips")
-
 	messageBytes, err := proto.Marshal(message)
 	if err != nil {
 		fmt.Printf("Failed to marshal GroupMessage: %v\n", err.Error())
 	}
-
-	selectedNodes := randomlySelectNodes(NUM_NODES_TO_GOSSIP)
-	sendGossipToNodes(selectedNodes, messageBytes)
+	sendGossipToNodes(targets, messageBytes)
 }
+
 
 func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 	// fmt.Println("Sending gossips to nodes")

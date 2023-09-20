@@ -7,11 +7,12 @@ import (
 )
 
 //Suspicion toggle
-
 func toggleSuspicionHandler(w http.ResponseWriter, r *http.Request) {
+	NodeListLock.Lock()
 	USE_SUSPICION = !USE_SUSPICION
 	fmt.Fprintf(w, "Toggled USE_SUSPICION to %v\n", USE_SUSPICION)
-}
+	NodeListLock.Unlock()
+} 
 
 // Message drop rate handler
 func messageDropRateHandler(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +26,10 @@ func messageDropRateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error: Invalid ihnput parameter value type", http.StatusBadRequest)
 		return
 	}
+	NodeListLock.Lock()
 	MESSAGE_DROP_RATE = parsedValue
+	NodeListLock.Unlock()
+	fmt.Fprintf(w, "Change message drop rate to %v\n", parsedValue)
 }
 
 func HandleExternalSignals() {
