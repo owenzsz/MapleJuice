@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	pb "cs425-mp/protobuf"
 
@@ -21,7 +20,7 @@ func HandleGroupMessages() {
 	defer conn.Close()
 	buffer := make([]byte, 4096)
 	for {
-		conn.SetWriteDeadline(time.Now().Add(CONN_TIMEOUT))
+		// conn.SetWriteDeadline(time.Now().Add(CONN_TIMEOUT))
 		n, from, err := conn.ReadFrom(buffer)
 		if err != nil {
 			fmt.Printf("Error reading: %v\n", err.Error())
@@ -39,9 +38,8 @@ func HandleGroupMessages() {
 			}
 			processJoinMessage(conn, from, groupMessage)
 
-		case pb.GroupMessage_GOSSIP:
-			go processGossipMessage(conn, groupMessage)
-			// TODO: add Leave message
+		case pb.GroupMessage_GOSSIP, pb.GroupMessage_LEAVE:
+			go processGossipMessage(groupMessage)
 		}
 	}
 }
@@ -66,7 +64,7 @@ func processJoinMessage(conn net.PacketConn, from net.Addr, message *pb.GroupMes
 	}
 }
 
-func processGossipMessage(conn net.PacketConn, message *pb.GroupMessage) {
+func processGossipMessage(message *pb.GroupMessage) {
 	// fmt.Println("Processing gossip message")
 	incomingNodeList := pBToNodeInfoList(message.NodeInfoList)
 	NodeListLock.Lock()

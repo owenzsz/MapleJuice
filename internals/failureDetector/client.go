@@ -14,6 +14,7 @@ import (
 
 func PeriodicUpdate() {
 	for {
+		spinOnFailedStatus()
 		NodeListLock.Lock()
 		gossip := NodeStatusUpdateAndNewGossip()
 		NodeListLock.Unlock()
@@ -104,19 +105,6 @@ func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 	}
 	wg.Wait()
 }
-
-// TODO: add leave message
-// func SendLeaveMessage() {
-// 	NodeListLock.Lock()
-// 	selectedNodes := randomlySelectNodes(NUM_NODES_TO_GOSSIP)
-// 	if localNode := getLocalNodeFromNodeList(); localNode != nil {
-// 		localNode.Status = Failed
-// 		localNode.TimeStamp = int(time.Now().Unix())
-// 	}
-// 	gossip := parseLocalNode()
-// 	NodeListLock.Unlock()
-// 	sendGossipToNodes(selectedNodes, gossip)
-// }
 
 func JoinGroupAndInit() error {
 	// Populate the first entry in Node List

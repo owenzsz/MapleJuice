@@ -22,6 +22,7 @@ message NodeInfoList {
 message GroupMessage {
   enum MessageType {
     JOIN = 0;
+    LEAVE = 1;
     GOSSIP = 2;
   }
 

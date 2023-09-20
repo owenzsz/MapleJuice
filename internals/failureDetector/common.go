@@ -16,7 +16,6 @@ const (
 	T_CLEANUP           = 10 * time.Second       // 10 seconds
 	NUM_NODES_TO_GOSSIP = 3                      //number of nodes to gossip to
 	PORT                = "55556"
-	HOST                = "0.0.0.0"
 	CONN_TIMEOUT        = 500 * time.Millisecond
 )
 
@@ -64,6 +63,10 @@ type Node struct {
 }
 
 func init() {
+	updateLocalNodeKey()
+}
+
+func updateLocalNodeKey() {
 	localNodeName, err := getLocalNodeAddress()
 	if err != nil {
 		fmt.Println("Unable to get local network address")
@@ -75,6 +78,9 @@ func init() {
 // update current membership list with incoming list
 func updateMembershipList(receivedMembershipList map[string]*Node) {
 	// fmt.Println("Updating membership list with incoming list")
+	if LOCAL_NODE_KEY == "" {
+		return
+	}
 	for key, receivedNode := range receivedMembershipList {
 		// In response to being suspected by someone, increase the suspicion incarnation number of self
 		if key == LOCAL_NODE_KEY && receivedNode.Status == Suspected {
@@ -110,6 +116,9 @@ func updateMembershipList(receivedMembershipList map[string]*Node) {
 			localInfo.SeqNo = receivedNode.SeqNo
 			localInfo.TimeStamp = time.Now()
 			localInfo.Status = receivedNode.Status
+			if receivedNode.Status == Failed {
+				fmt.Println("Marking ", key, " as failed due to gossip from other nodes")
+			}
 		}
 	}
 }
@@ -130,8 +139,7 @@ func nodeInfoListToPB() *pb.NodeInfoList {
 			}
 			_status = pb.NodeInfoRow_Suspected
 		case Failed:
-			// FAILED node should never be communicated to peers over the network
-			continue
+			_status = pb.NodeInfoRow_Failed
 		}
 
 		pbNodeList.Rows = append(pbNodeList.Rows, &pb.NodeInfoRow{
@@ -222,4 +230,10 @@ func randomPeersToPB(newcomerKey string) *pb.NodeInfoList {
 	}
 
 	return pbNodeList
+}
+
+func spinOnFailedStatus() {
+	for LOCAL_NODE_KEY == "" {
+
+	}
 }

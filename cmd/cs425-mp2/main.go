@@ -34,6 +34,12 @@ func main() {
 		failureDetector.PeriodicUpdate()
 	}()
 
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		failureDetector.HandleUserInput()
+	}()
+
 	wg.Wait()
 
 }
