@@ -2,8 +2,10 @@ package failureDetector
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
+	"time"
 
 	pb "cs425-mp/protobuf"
 
@@ -20,6 +22,11 @@ func HandleGroupMessages() {
 	defer conn.Close()
 	buffer := make([]byte, 4096)
 	for {
+		// If current node is not initialized or is in LEFT status, do nothing
+		if LOCAL_NODE_KEY == "" {
+			time.Sleep(GOSSIP_RATE)
+			continue
+		}
 		// conn.SetWriteDeadline(time.Now().Add(CONN_TIMEOUT))
 		n, from, err := conn.ReadFrom(buffer)
 		if err != nil {
@@ -70,4 +77,53 @@ func processGossipMessage(message *pb.GroupMessage) {
 	NodeListLock.Lock()
 	updateMembershipList(incomingNodeList)
 	NodeListLock.Unlock()
+}
+
+
+func newResponseToJoin(newcomerKey string) *pb.GroupMessage {
+	return &pb.GroupMessage{
+		Type:         pb.GroupMessage_GOSSIP,
+		NodeInfoList: randomPeersToPB(newcomerKey),
+	}
+}
+
+func randomPeersToPB(newcomerKey string) *pb.NodeInfoList {
+	pbNodeList := &pb.NodeInfoList{}
+	pbNodeList.Rows = []*pb.NodeInfoRow{}
+
+	keyPool := make([]string, 0)
+	for nodeID := range NodeInfoList {
+		if nodeID != newcomerKey {
+			keyPool = append(keyPool, nodeID)
+		}
+	}
+	rand.Shuffle(len(keyPool), func(i, j int) { keyPool[i], keyPool[j] = keyPool[j], keyPool[i] })
+
+	numPeersToSend := min(NUM_NODES_TO_GOSSIP, len(keyPool))
+
+
+	for _, nodeID := range keyPool {
+		nodeInfo := NodeInfoList[nodeID]
+
+		var _status pb.NodeInfoRow_NodeStatus
+		switch nodeInfo.Status {
+		case Alive:
+			_status = pb.NodeInfoRow_Alive
+		case Suspected, Failed, Left:
+			continue
+		}
+
+		pbNodeList.Rows = append(pbNodeList.Rows, &pb.NodeInfoRow{
+			NodeID: nodeID,
+			SeqNum: nodeInfo.SeqNo,
+			Status: _status,
+		})
+
+		numPeersToSend --
+		if numPeersToSend == 0 {
+			break;
+		}
+	}
+
+	return pbNodeList
 }
