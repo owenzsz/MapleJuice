@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// listen to group messages from other nodes
+// listen to group messages from other nodes and dispatch to corresponding message pipelines
 func HandleGroupMessages() {
 	conn, err := net.ListenPacket("udp", ":"+PORT)
 	if err != nil {
@@ -33,6 +33,13 @@ func HandleGroupMessages() {
 			fmt.Printf("Error reading: %v\n", err.Error())
 			continue
 		}
+
+		// Drop message based on drop rate
+		if shouldDropMessage() {
+			continue
+		}
+
+
 		groupMessage := &pb.GroupMessage{}
 		err = proto.Unmarshal(buffer[:n], groupMessage)
 		if err != nil {

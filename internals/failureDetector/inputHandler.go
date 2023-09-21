@@ -5,7 +5,10 @@ import (
 	pb "cs425-mp/protobuf"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -35,16 +38,32 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 	for {
 		//read the user input from inputChan
 		query := <-inputChan
-		switch strings.TrimRight(query, "\n") {
-		case "leave":
-			handleLeave()
-		case "rejoin":
-			handleRejoin()
-		case "list_mem":
-			showMembershipList()
-		case "list_self":
-			showSelfID()
-		default:
+		trimmed := strings.TrimRight(query, "\n")
+		splitted := strings.Split(trimmed, " ")
+		if len(splitted) == 1 {
+			switch splitted[0] {
+			case "leave":
+				handleLeave()
+			case "rejoin":
+				handleRejoin()
+			case "list_mem":
+				showMembershipList()
+			case "list_self":
+				showSelfID()
+			case "suspicion_toggle":
+				toggleSuspicion()
+			default:
+				fmt.Println("Error: input command not supported.")
+			}
+		} else if len(splitted) == 2 {
+			switch splitted[0] {
+			case "drop_rate":
+				AdjustDropRate(splitted[1])
+			default:
+				fmt.Println("Error: input command not supported.")
+			}
+
+		} else {
 			fmt.Println("Error: input command not supported.")
 		}
 
@@ -103,4 +122,71 @@ func showSelfID() {
 	NodeListLock.Unlock()
 
 	fmt.Println(">>> ", id)
+}
+
+func AdjustDropRate(_dropRate string) {
+	// VM dns names
+	VMs := []string{
+		"fa23-cs425-1801.cs.illinois.edu", "fa23-cs425-1802.cs.illinois.edu",
+		"fa23-cs425-1803.cs.illinois.edu", "fa23-cs425-1804.cs.illinois.edu",
+		"fa23-cs425-1805.cs.illinois.edu", "fa23-cs425-1806.cs.illinois.edu",
+		"fa23-cs425-1807.cs.illinois.edu", "fa23-cs425-1808.cs.illinois.edu",
+		"fa23-cs425-1809.cs.illinois.edu", "fa23-cs425-1810.cs.illinois.edu",
+	}
+
+	Port := 8080
+
+	dropRate, err := strconv.ParseFloat(_dropRate, 64)
+	if err != nil || dropRate < 0.0 || dropRate > 1.0 {
+		fmt.Println("Not a valid drop rate. Should be between 0.0 and 1.0")
+		return
+	}
+
+	for _, server := range VMs {
+		url := fmt.Sprintf("http://%s:%d/updateMessageDropRate?value=%f", server, Port, dropRate)
+		response, err := http.Get(url)
+		if err != nil {
+			fmt.Printf("Unable to connect to %s\n", server)
+			continue
+		}
+		defer response.Body.Close()
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			fmt.Printf("Error reading response body from %s\n", server)
+			continue
+		}
+
+		fmt.Printf("%s: %s\n", server, string(body))
+	}
+}
+
+func toggleSuspicion() {
+	// VM dns names
+	VMs := []string{
+		"fa23-cs425-1801.cs.illinois.edu", "fa23-cs425-1802.cs.illinois.edu",
+		"fa23-cs425-1803.cs.illinois.edu", "fa23-cs425-1804.cs.illinois.edu",
+		"fa23-cs425-1805.cs.illinois.edu", "fa23-cs425-1806.cs.illinois.edu",
+		"fa23-cs425-1807.cs.illinois.edu", "fa23-cs425-1808.cs.illinois.edu",
+		"fa23-cs425-1809.cs.illinois.edu", "fa23-cs425-1810.cs.illinois.edu",
+	}
+
+	Port := 8080
+
+	for _, server := range VMs {
+		url := fmt.Sprintf("http://%s:%d/toggleSuspicion", server, Port)
+		response, err := http.Get(url)
+		if err != nil {
+			fmt.Printf("Unable to connect to %s\n", server)
+			continue
+		}
+		defer response.Body.Close()
+
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			fmt.Printf("Error reading response body from %s\n", server)
+			continue
+		}
+
+		fmt.Printf("%s: %s\n", server, string(body))
+	}
 }
