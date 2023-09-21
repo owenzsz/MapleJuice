@@ -77,3 +77,8 @@ func customLog(printToStdout bool, format string, v ...interface{}) {
 	}
 	log.Printf("Current Mode[%s]; message drop rate[%s] - %s\n", mode, messaegeDropRate, msg)
 }
+
+// determine whether should drop message based on manually set message drop rate
+func shouldDropMessage() bool {
+	return rand.Float64() < MESSAGE_DROP_RATE
+}

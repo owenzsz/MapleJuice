@@ -4,7 +4,6 @@ import (
 	pb "cs425-mp/protobuf"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -84,12 +83,6 @@ func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 		wg.Add(1)
 		go func(address string) {
 			defer wg.Done()
-			// TODO: abstract drop rate detail to a separate method that each send will instead call
-			rand.Seed(time.Now().UnixNano())
-			randomNumber := rand.Float64()
-			if randomNumber > 1-MESSAGE_DROP_RATE {
-				return
-			}
 			conn, err := net.DialTimeout("udp", address, CONN_TIMEOUT)
 			if err != nil {
 				// fmt.Println("Error dialing UDP: ", err)
