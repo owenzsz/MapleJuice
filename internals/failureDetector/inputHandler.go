@@ -57,7 +57,7 @@ func handleLeave() {
 		return
 	}
 	NodeListLock.Lock()
-	NodeInfoList[LOCAL_NODE_KEY].Status = Left 
+	NodeInfoList[LOCAL_NODE_KEY].Status = Left
 	NodeInfoList[LOCAL_NODE_KEY].SeqNo++
 	leaveMessage := newMessageOfType(pb.GroupMessage_LEAVE)
 	selectedNodes := randomlySelectNodes(NUM_NODES_TO_GOSSIP)
@@ -87,7 +87,7 @@ func showMembershipList() {
 		currList[key] = *value
 	}
 	NodeListLock.Unlock()
-	
+
 	list, err := json.MarshalIndent(currList, "", "  ")
 	if err != nil {
 		fmt.Println("failed to pretty-print the membership list")

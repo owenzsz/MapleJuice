@@ -11,7 +11,7 @@ import (
 const (
 	INTRODUCER_ADDRESS  = "fa23-cs425-1801.cs.illinois.edu:55556"
 	GOSSIP_RATE         = 500 * time.Millisecond // 500ms
-	T_FAIL              = 3 * time.Second        // 3 seconds
+	T_FAIL              = 3 * time.Second        // 3 seconds, also used as T_SUSPECT
 	T_CLEANUP           = 10 * time.Second       // 10 seconds
 	NUM_NODES_TO_GOSSIP = 3                      //number of nodes to gossip to
 	PORT                = "55556"
@@ -101,10 +101,10 @@ func updateMembershipList(receivedMembershipList map[string]*Node) {
 		// Add the node to membership list if never seen before
 		if !ok {
 			if receivedNode.Status == Left {
-				fmt.Printf("Mark node (%v) as LEFT in membership list\n", key)
+				customLog(true, "Mark node (%v) as LEFT in membership list", key)
 			} else {
-				fmt.Printf("New node (%v) adding it to membership list\n", key)
-			} 
+				customLog(true, "New node (%v) adding it to membership list", key)
+			}
 			NodeInfoList[key] = receivedNode
 			continue
 		}
@@ -112,7 +112,6 @@ func updateMembershipList(receivedMembershipList map[string]*Node) {
 		if localInfo.Status == Failed {
 			continue
 		}
-		
 
 		// Up to this point, The incoming node statuses can only be either ALIVE or SUSPECTED
 		// , and the local statuses for the node can only be either ALIVE or SUSPECTED as well.
@@ -122,7 +121,7 @@ func updateMembershipList(receivedMembershipList map[string]*Node) {
 			localInfo.TimeStamp = time.Now()
 			localInfo.Status = receivedNode.Status
 			if receivedNode.Status == Left {
-				fmt.Printf("Mark node (%v) as LEFT in membership list\n", key)
+				customLog(true, "Mark node (%v) as LEFT in membership list", key)
 			}
 		}
 	}
@@ -148,6 +147,7 @@ func nodeInfoListToPB() *pb.NodeInfoList {
 		case Failed:
 			// FAILED node should never be communicated to peers over the network
 			continue
+
 		}
 
 		pbNodeList.Rows = append(pbNodeList.Rows, &pb.NodeInfoRow{
@@ -192,6 +192,3 @@ func newMessageOfType(messageType pb.GroupMessage_MessageType) *pb.GroupMessage 
 		NodeInfoList: nodeInfoListToPB(),
 	}
 }
-
-
-
