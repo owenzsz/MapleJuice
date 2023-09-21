@@ -79,7 +79,6 @@ func processGossipMessage(message *pb.GroupMessage) {
 	NodeListLock.Unlock()
 }
 
-
 func newResponseToJoin(newcomerKey string) *pb.GroupMessage {
 	return &pb.GroupMessage{
 		Type:         pb.GroupMessage_GOSSIP,
@@ -101,7 +100,6 @@ func randomPeersToPB(newcomerKey string) *pb.NodeInfoList {
 
 	numPeersToSend := min(NUM_NODES_TO_GOSSIP, len(keyPool))
 
-
 	for _, nodeID := range keyPool {
 		nodeInfo := NodeInfoList[nodeID]
 
@@ -119,9 +117,9 @@ func randomPeersToPB(newcomerKey string) *pb.NodeInfoList {
 			Status: _status,
 		})
 
-		numPeersToSend --
+		numPeersToSend--
 		if numPeersToSend == 0 {
-			break;
+			break
 		}
 	}
 

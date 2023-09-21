@@ -2,8 +2,10 @@ package failureDetector
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -35,7 +37,6 @@ func randomlySelectNodes(num int) []*Node {
 	return selectedNodes
 }
 
-
 func getLocalNodeAddress() (string, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -59,4 +60,20 @@ func min(a int, b int) int {
 		return a
 	}
 	return b
+}
+
+// helper function to write log
+func customLog(printToStdout bool, format string, v ...interface{}) {
+	var mode = ""
+	messaegeDropRate := strconv.FormatFloat(MESSAGE_DROP_RATE, 'f', -1, 64)
+	if USE_SUSPICION {
+		mode = "Gossip + S"
+	} else {
+		mode = "Gossip"
+	}
+	msg := fmt.Sprintf(format, v...)
+	if printToStdout {
+		fmt.Println(msg)
+	}
+	log.Printf("Current Mode[%s]; message drop rate[%s] - %s\n", mode, messaegeDropRate, msg)
 }

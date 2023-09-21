@@ -18,7 +18,7 @@ func PeriodicUpdate() {
 		if LOCAL_NODE_KEY == "" {
 			time.Sleep(GOSSIP_RATE)
 			continue
-		}	
+		}
 		NodeListLock.Lock()
 		gossip := NodeStatusUpdateAndNewGossip()
 		selectedNodes := randomlySelectNodes(NUM_NODES_TO_GOSSIP)
@@ -41,23 +41,23 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 		case Alive:
 			if sinceLastTimestamp > T_FAIL {
 				if USE_SUSPICION {
-					fmt.Println("Marking ", key, " as suspected")
+					customLog(true, "Marking %v as suspected", key)
 					node.Status = Suspected
 					node.TimeStamp = time.Now()
 				} else {
-					fmt.Println("Marking ", key, " as failed, overtime for ", sinceLastTimestamp.Seconds()-T_FAIL.Seconds(), " time")
+					customLog(true, "Marking %v as failed, over time for %v time", key, sinceLastTimestamp.Seconds()-T_FAIL.Seconds())
 					node.Status = Failed
 					node.TimeStamp = time.Now()
 				}
 			}
 		case Failed, Left:
 			if sinceLastTimestamp > T_CLEANUP {
-				fmt.Println("Deleting node: ", key)
+				customLog(true, "Deleting node: %v", key)
 				delete(NodeInfoList, key)
 			}
 		case Suspected:
 			if !USE_SUSPICION || sinceLastTimestamp > T_FAIL {
-				fmt.Println("Marking ", key, " as failed")
+				customLog(true, "Marking %v as failed", key)
 				node.Status = Failed
 				node.TimeStamp = time.Now()
 			}
@@ -76,7 +76,6 @@ func SendGossip(message *pb.GroupMessage, targets []*Node) {
 	}
 	sendGossipToNodes(targets, messageBytes)
 }
-
 
 func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 	// fmt.Println("Sending gossips to nodes")
@@ -103,6 +102,7 @@ func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 				fmt.Println("Error sending UDP: ", err)
 				return
 			}
+			customLog(false, "Sent gossip with size of %v bytes", len(gossip))
 		}(node.NodeAddr)
 	}
 	wg.Wait()
@@ -148,6 +148,7 @@ func JoinGroupAndInit() error {
 			return err
 		}
 		_, err = conn.Write(msg)
+		customLog(false, "Sent Join message with size of %v bytes", len(msg))
 		if err != nil {
 			fmt.Println("Unable to send JOIN message")
 			time.Sleep(GOSSIP_RATE)
