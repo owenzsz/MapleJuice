@@ -11,8 +11,9 @@ import (
 const (
 	INTRODUCER_ADDRESS  = "fa23-cs425-1801.cs.illinois.edu:55556"
 	GOSSIP_RATE         = 500 * time.Millisecond // 500ms
-	T_FAIL              = 3 * time.Second        // 3 seconds, also used as T_SUSPECT
-	T_CLEANUP           = 10 * time.Second       // 10 seconds
+	T_FAIL              = 3 * time.Second        // 3 seconds
+	T_SUSPECT           = 2 * time.Second        // 2 seconds
+	T_CLEANUP           = 3 * time.Second        // 10 seconds
 	NUM_NODES_TO_GOSSIP = 3                      //number of nodes to gossip to
 	PORT                = "55556"
 	CONN_TIMEOUT        = 500 * time.Millisecond

@@ -38,16 +38,14 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 		sinceLastTimestamp := time.Since(node.TimeStamp)
 		switch node.Status {
 		case Alive:
-			if sinceLastTimestamp > T_FAIL {
-				if USE_SUSPICION {
-					customLog(true, "Marking %v as suspected", key)
-					node.Status = Suspected
-					node.TimeStamp = time.Now()
-				} else {
-					customLog(true, "Marking %v as failed, over time for %v time", key, sinceLastTimestamp.Seconds()-T_FAIL.Seconds())
-					node.Status = Failed
-					node.TimeStamp = time.Now()
-				}
+			if USE_SUSPICION && sinceLastTimestamp > T_SUSPECT {
+				customLog(true, "Marking %v as suspected", key)
+				node.Status = Suspected
+				node.TimeStamp = time.Now()
+			} else if sinceLastTimestamp > T_FAIL {
+				customLog(true, "Marking %v as failed, over time for %v time", key, sinceLastTimestamp.Seconds()-T_FAIL.Seconds())
+				node.Status = Failed
+				node.TimeStamp = time.Now()
 			}
 		case Failed, Left:
 			if sinceLastTimestamp > T_CLEANUP {
@@ -56,7 +54,11 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 			}
 		case Suspected:
 			if !USE_SUSPICION || sinceLastTimestamp > T_FAIL {
-				customLog(true, "Marking %v as failed", key)
+				if !USE_SUSPICION {
+					customLog(true, "Marking %v as failed", key)
+				} else if sinceLastTimestamp > T_FAIL {
+					customLog(true, "Marking %v as from suspected to failedm over time for %v time", key, sinceLastTimestamp.Seconds()-T_FAIL.Seconds())
+				}
 				node.Status = Failed
 				node.TimeStamp = time.Now()
 			}
