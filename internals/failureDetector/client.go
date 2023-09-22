@@ -85,6 +85,17 @@ func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 		wg.Add(1)
 		go func(address string) {
 			defer wg.Done()
+			if cachedAddress, ok := DNS_Cache[address]; ok {
+				address = cachedAddress
+			} else {
+				newAddr, err := net.ResolveUDPAddr("udp", address)
+				if err != nil {
+					panic("DNS resolve failed")
+				}
+				newAddrStr := newAddr.String()
+				DNS_Cache[address] = newAddrStr
+				address = newAddrStr
+			}
 			conn, err := net.DialTimeout("udp", address, CONN_TIMEOUT)
 			if err != nil {
 				// fmt.Println("Error dialing UDP: ", err)
