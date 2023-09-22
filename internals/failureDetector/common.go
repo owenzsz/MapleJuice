@@ -10,11 +10,11 @@ import (
 
 const (
 	INTRODUCER_ADDRESS  = "fa23-cs425-1801.cs.illinois.edu:55556"
-	GOSSIP_RATE         = 500 * time.Millisecond // 500ms
+	GOSSIP_RATE         = 500 * time.Millisecond // 500 ms
 	T_FAIL              = 3 * time.Second        // 3 seconds
 	T_SUSPECT           = 2 * time.Second        // 2 seconds
-	T_CLEANUP           = 3 * time.Second        // 10 seconds
-	NUM_NODES_TO_GOSSIP = 3                      //number of nodes to gossip to
+	T_CLEANUP           = 3 * time.Second        // 3 seconds
+	NUM_NODES_TO_GOSSIP = 2                      //number of nodes to gossip to
 	PORT                = "55556"
 	CONN_TIMEOUT        = 500 * time.Millisecond
 )
@@ -48,12 +48,14 @@ const (
 	Gossip
 )
 
+// Internal states of current node
 var (
 	NodeInfoList      = make(map[string]*Node)
 	USE_SUSPICION     = false
 	MESSAGE_DROP_RATE = 0.0
 	LOCAL_NODE_KEY    = ""
 	NodeListLock      = &sync.Mutex{}
+	DNS_Cache         = make(map[string]string)
 )
 
 type Node struct {
@@ -73,7 +75,7 @@ func updateLocalNodeKey() {
 		fmt.Println("Unable to get local network address")
 		os.Exit(1)
 	}
-	LOCAL_NODE_KEY = localNodeName + ":" + time.Now().Format("2017-09-07 17:06:04.000000")
+	LOCAL_NODE_KEY = compressServerTimeID(localNodeName + ":" + time.Now().Format("2017-09-07 17:06:04.000000"))
 }
 
 // update current membership list with incoming list

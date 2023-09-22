@@ -47,8 +47,26 @@ func getLocalNodeAddress() (string, error) {
 	return key, nil
 }
 
-// Given a nodeKey in format of [hostname]:[port]:[timestamp], extract the [hostname]:[port] part as a string
+//Compress strings like "fa23-cs425-1805.cs.illinois.edu:55556:22097-09-05 97:23:35.319919" to the format of "05_319919"
+func compressServerTimeID(input string) string {
+	parts := strings.Split(input, "-")
+	serverNumber := parts[2][2:4]
+	millisecond := parts[4][len(parts[4])-6:]
+	result := fmt.Sprintf("%s_%s", serverNumber, millisecond)
+	return result
+}
+
+func decompressServerTimeID(input string) string {
+    parts := strings.Split(input, "_")
+    serverNumber := parts[0]
+	millisecond := parts[1]
+    decompressedID := fmt.Sprintf("fa23-cs425-18%s.cs.illinois.edu:55556:22097-09-05 97:23:35.%s", serverNumber, millisecond)
+    return decompressedID
+}
+
+// Given a nodeKey in format of [machine_number]_[version_number], extract the [hostname]:[port] as a string
 func GetAddrFromNodeKey(nodeKey string) string {
+	nodeKey = decompressServerTimeID(nodeKey)
 	idSplitted := strings.Split(nodeKey, ":")
 	peer_name := idSplitted[0]
 	peer_port := idSplitted[1]
