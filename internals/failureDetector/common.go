@@ -57,6 +57,10 @@ var (
 	NodeListLock      = &sync.Mutex{}
 	DNS_Cache         = make(map[string]string)
 )
+var (
+	DNS_Cache_Lock = &sync.Mutex{}
+	DNS_Cache      = make(map[string]string)
+)
 
 type Node struct {
 	NodeAddr  string
