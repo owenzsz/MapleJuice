@@ -10,7 +10,7 @@ import (
 
 const (
 	INTRODUCER_ADDRESS  = "fa23-cs425-1801.cs.illinois.edu:55556"
-	GOSSIP_RATE         = 500 * time.Millisecond // 500 ms
+	GOSSIP_RATE         = 400 * time.Millisecond // 500 ms
 	T_FAIL              = 2 * time.Second        // 2 seconds
 	T_SUSPECT           = 2 * time.Second        // 2 seconds
 	T_CLEANUP           = 3 * time.Second        // 3 seconds
