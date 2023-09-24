@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const (
+var (
 	INTRODUCER_ADDRESS  = "fa23-cs425-1801.cs.illinois.edu:55556"
 	GOSSIP_RATE         = 500 * time.Millisecond // 500 ms
 	T_FAIL              = 2 * time.Second        // 2 seconds

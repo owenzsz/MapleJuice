@@ -4,12 +4,18 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 //Suspicion toggle
 func toggleSuspicionHandler(w http.ResponseWriter, r *http.Request) {
 	NodeListLock.Lock()
 	USE_SUSPICION = !USE_SUSPICION
+	if USE_SUSPICION {
+		T_FAIL = 2 * time.Second
+	} else {
+		T_FAIL = 4 * time.Second
+	}
 	fmt.Fprintf(w, "Toggled USE_SUSPICION to %v\n", USE_SUSPICION)
 	NodeListLock.Unlock()
 } 
