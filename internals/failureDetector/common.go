@@ -55,7 +55,6 @@ var (
 	MESSAGE_DROP_RATE = 0.0
 	LOCAL_NODE_KEY    = ""
 	NodeListLock      = &sync.Mutex{}
-	DNS_Cache         = make(map[string]string)
 )
 var (
 	DNS_Cache_Lock = &sync.Mutex{}
