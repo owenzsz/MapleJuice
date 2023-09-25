@@ -2,33 +2,55 @@ package failureDetector
 
 import (
 	pb "cs425-mp/protobuf"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
 	"time"
 )
 
+const (
+	INTRODUCER_ADDRESS = "fa23-cs425-1801.cs.illinois.edu:55556" // Introducer node's receiving address
+	PORT               = "55556"
+	CONN_TIMEOUT       = 500 * time.Millisecond
+)
+
 var (
-	INTRODUCER_ADDRESS  = "fa23-cs425-1801.cs.illinois.edu:55556"
 	GOSSIP_RATE         = 500 * time.Millisecond // 500 ms
-	T_FAIL              = 2 * time.Second        // 2 seconds
+	T_FAIL              = 4 * time.Second        // 4 seconds
 	T_SUSPECT           = 2 * time.Second        // 2 seconds
 	T_CLEANUP           = 3 * time.Second        // 3 seconds
 	NUM_NODES_TO_GOSSIP = 2                      //number of nodes to gossip to
-	PORT                = "55556"
-	CONN_TIMEOUT        = 500 * time.Millisecond
+
+	NodeInfoList      = make(map[string]*Node) // Membership list
+	USE_SUSPICION     = false                  // whether to use suspicion mode. Default is off. Can be changed through http endpoint
+	MESSAGE_DROP_RATE = 0.0                    // drop rate. Default is 0%. Can be changed through http endpoint
+	LOCAL_NODE_KEY    = ""                     // current node's ID key. Dynamically generated every time a node is brought up or rejoined
+	NodeListLock      = &sync.Mutex{}          // mutex to protect internal states
+
+	DNS_Cache_Lock = &sync.Mutex{}           // mutex to protect DNS_Cache
+	DNS_Cache      = make(map[string]string) // local cache to store the response of DNS request
 )
+
+// Node struct to represent each row in the membership list
+type Node struct {
+	NodeAddr  string
+	SeqNo     int32
+	Status    StatusType
+	TimeStamp time.Time
+}
 
 type MessageType int
 type StatusType int
 
+// Node status types
 const (
 	Alive StatusType = iota
 	Suspected
 	Failed
 	Left
 )
-
+// stringify helper for StatusType
 func (e StatusType) String() string {
 	switch e {
 	case Alive:
@@ -41,37 +63,23 @@ func (e StatusType) String() string {
 		return "Unknown status type. Please check StatusType enum"
 	}
 }
+// visualization helper for StatusType
+func (s StatusType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
 
+// Node message types
 const (
 	Join MessageType = iota
 	Leave
 	Gossip
 )
 
-// Internal states of current node
-var (
-	NodeInfoList      = make(map[string]*Node)
-	USE_SUSPICION     = false
-	MESSAGE_DROP_RATE = 0.0
-	LOCAL_NODE_KEY    = ""
-	NodeListLock      = &sync.Mutex{}
-)
-var (
-	DNS_Cache_Lock = &sync.Mutex{}
-	DNS_Cache      = make(map[string]string)
-)
-
-type Node struct {
-	NodeAddr  string
-	SeqNo     int32
-	Status    StatusType
-	TimeStamp time.Time
-}
-
 func init() {
 	updateLocalNodeKey()
 }
 
+// Refresh current node's ID key
 func updateLocalNodeKey() {
 	localNodeName, err := getLocalNodeAddress()
 	if err != nil {
@@ -81,16 +89,15 @@ func updateLocalNodeKey() {
 	LOCAL_NODE_KEY = compressServerTimeID(localNodeName + ":" + time.Now().Format("2017-09-07 17:06:04.000000"))
 }
 
-// update current membership list with incoming list
+// Update current membership list with incoming list
 func updateMembershipList(receivedMembershipList map[string]*Node) {
-	// fmt.Println("Updating membership list with incoming list")
 	if LOCAL_NODE_KEY == "" {
 		return
 	}
 	for key, receivedNode := range receivedMembershipList {
 		// In response to being suspected by someone, increase the suspicion incarnation number of self
 		if key == LOCAL_NODE_KEY && receivedNode.Status == Suspected {
-			fmt.Println("Being suspected, increasing incarnation number")
+			customLog(true, "Being suspected, increasing incarnation number")
 			self, ok := NodeInfoList[LOCAL_NODE_KEY]
 			if !ok {
 				fmt.Println("Self is not found in local membership list when updating the list")
@@ -122,7 +129,6 @@ func updateMembershipList(receivedMembershipList map[string]*Node) {
 		// Up to this point, The incoming node statuses can only be either ALIVE or SUSPECTED
 		// , and the local statuses for the node can only be either ALIVE or SUSPECTED as well.
 		if localInfo.SeqNo < receivedNode.SeqNo {
-			// fmt.Printf("Incrementing counter for node (%v), status: %v -> %v, seqNum: %v -> %v\n", key, localInfo.Status, receivedNode.Status, localInfo.SeqNo, receivedNode.SeqNo)
 			localInfo.SeqNo = receivedNode.SeqNo
 			localInfo.TimeStamp = time.Now()
 			localInfo.Status = receivedNode.Status
@@ -133,6 +139,7 @@ func updateMembershipList(receivedMembershipList map[string]*Node) {
 	}
 }
 
+// Encode current node's membership list to protobuf's struct
 func nodeInfoListToPB() *pb.NodeInfoList {
 	pbNodeList := &pb.NodeInfoList{}
 	pbNodeList.Rows = []*pb.NodeInfoRow{}
@@ -166,6 +173,7 @@ func nodeInfoListToPB() *pb.NodeInfoList {
 	return pbNodeList
 }
 
+// Decode incoming protobuf representation of membership to local representation 
 func pBToNodeInfoList(incomingNodeList *pb.NodeInfoList) map[string]*Node {
 	newNodeList := make(map[string]*Node)
 	for _, row := range incomingNodeList.GetRows() {
@@ -192,6 +200,7 @@ func pBToNodeInfoList(incomingNodeList *pb.NodeInfoList) map[string]*Node {
 	return newNodeList
 }
 
+// Construct new message of specified TYPE and local membership list
 func newMessageOfType(messageType pb.GroupMessage_MessageType) *pb.GroupMessage {
 	return &pb.GroupMessage{
 		Type:         messageType,

@@ -13,11 +13,12 @@ import (
 
 func PeriodicUpdate() {
 	for {
-		// If local is not started or is still in LEFT status, do nothing
+		// If current node is not started or is still in LEFT status, do nothing
 		if LOCAL_NODE_KEY == "" {
 			time.Sleep(GOSSIP_RATE)
 			continue
 		}
+		// Perform periodic membership refresh and sendout heartbeats
 		NodeListLock.Lock()
 		gossip := NodeStatusUpdateAndNewGossip()
 		selectedNodes := randomlySelectNodes(NUM_NODES_TO_GOSSIP)
@@ -28,7 +29,6 @@ func PeriodicUpdate() {
 }
 
 func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
-	// fmt.Println("Checking failure")
 	for key, node := range NodeInfoList {
 		if key == LOCAL_NODE_KEY {
 			node.TimeStamp = time.Now()
@@ -70,7 +70,6 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 
 // send gossip to other nodes
 func SendGossip(message *pb.GroupMessage, targets []*Node) {
-	// fmt.Println("Sending gossips")
 	messageBytes, err := proto.Marshal(message)
 	if err != nil {
 		fmt.Printf("Failed to marshal GroupMessage: %v\n", err.Error())
@@ -79,12 +78,12 @@ func SendGossip(message *pb.GroupMessage, targets []*Node) {
 }
 
 func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
-	// fmt.Println("Sending gossips to nodes")
 	var wg sync.WaitGroup
 	for _, node := range selectedNodes {
 		wg.Add(1)
 		go func(address string) {
 			defer wg.Done()
+			// Using DNS cached response as possible
 			DNS_Cache_Lock.Lock()
 			if cachedAddress, ok := DNS_Cache[address]; ok {
 				address = cachedAddress
@@ -98,6 +97,7 @@ func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 				address = newAddrStr
 			}
 			DNS_Cache_Lock.Unlock()
+
 			conn, err := net.DialTimeout("udp", address, CONN_TIMEOUT)
 			if err != nil {
 				// fmt.Println("Error dialing UDP: ", err)
@@ -141,7 +141,7 @@ func JoinGroupAndInit() error {
 	if err != nil {
 		fmt.Printf("Failed to marshal GroupMessage: %v\n", err.Error())
 	}
-	// Send out JOIN message
+
 	conn, err := net.Dial("udp", INTRODUCER_ADDRESS)
 	if err != nil {
 		return err
@@ -149,7 +149,7 @@ func JoinGroupAndInit() error {
 
 	defer conn.Close()
 
-	// Try 5 times the join process, if all fail, return err
+	// Try joining the group for five times. If all fail, exit with error
 	for i := 0; i < 5; i++ {
 		err = conn.SetDeadline(time.Now().Add(2 * time.Second))
 		if err != nil {

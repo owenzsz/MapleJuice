@@ -50,8 +50,10 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 				showMembershipList()
 			case "list_self":
 				showSelfID()
-			case "suspicion_toggle":
-				toggleSuspicion()
+			case "enable_suspicion":
+				toggleSuspicion(true)
+			case "disable_suspicion":
+				toggleSuspicion(false)
 			default:
 				fmt.Println("Error: input command not supported.")
 			}
@@ -160,7 +162,7 @@ func AdjustDropRate(_dropRate string) {
 	}
 }
 
-func toggleSuspicion() {
+func toggleSuspicion(isOn bool) {
 	// VM dns names
 	VMs := []string{
 		"fa23-cs425-1801.cs.illinois.edu", "fa23-cs425-1802.cs.illinois.edu",
@@ -173,7 +175,12 @@ func toggleSuspicion() {
 	Port := 8080
 
 	for _, server := range VMs {
-		url := fmt.Sprintf("http://%s:%d/toggleSuspicion", server, Port)
+		var url string
+		if isOn {
+			url = fmt.Sprintf("http://%s:%d/enableSuspicion", server, Port)
+		} else {
+			url = fmt.Sprintf("http://%s:%d/disableSuspicion", server, Port)
+		}
 		response, err := http.Get(url)
 		if err != nil {
 			fmt.Printf("Unable to connect to %s\n", server)

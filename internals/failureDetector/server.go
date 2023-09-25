@@ -6,13 +6,11 @@ import (
 	"net"
 	"os"
 	"time"
-
 	pb "cs425-mp/protobuf"
-
 	"google.golang.org/protobuf/proto"
 )
 
-// listen to group messages from other nodes and dispatch to corresponding message pipelines
+// listen to group messages from other nodes and dispatch messages to corresponding handler pipelines
 func HandleGroupMessages() {
 	conn, err := net.ListenPacket("udp", ":"+PORT)
 	if err != nil {
@@ -27,7 +25,6 @@ func HandleGroupMessages() {
 			time.Sleep(GOSSIP_RATE)
 			continue
 		}
-		// conn.SetWriteDeadline(time.Now().Add(CONN_TIMEOUT))
 		n, from, err := conn.ReadFrom(buffer)
 		if err != nil {
 			fmt.Printf("Error reading: %v\n", err.Error())
@@ -39,12 +36,12 @@ func HandleGroupMessages() {
 			continue
 		}
 
-
 		groupMessage := &pb.GroupMessage{}
 		err = proto.Unmarshal(buffer[:n], groupMessage)
 		if err != nil {
 			fmt.Printf("Error unmarshalling group message: %v\n", err.Error())
 		}
+
 		switch groupMessage.Type {
 		case pb.GroupMessage_JOIN:
 			if INTRODUCER_ADDRESS != GetAddrFromNodeKey(LOCAL_NODE_KEY) {
@@ -58,7 +55,7 @@ func HandleGroupMessages() {
 	}
 }
 
-// Process the JOIN message and in response generate a gossip message for the newcomer
+// Process the JOIN message and in response give partial membership list back
 func processJoinMessage(conn net.PacketConn, from net.Addr, message *pb.GroupMessage) {
 	incomingNodeList := pBToNodeInfoList(message.NodeInfoList)
 	newcomerKey := message.NodeInfoList.Rows[0].NodeID
@@ -78,6 +75,7 @@ func processJoinMessage(conn net.PacketConn, from net.Addr, message *pb.GroupMes
 	}
 }
 
+// Process GOSSIP/LEAVE messages, updating membership list as needed
 func processGossipMessage(message *pb.GroupMessage) {
 	// fmt.Println("Processing gossip message")
 	incomingNodeList := pBToNodeInfoList(message.NodeInfoList)
@@ -86,6 +84,7 @@ func processGossipMessage(message *pb.GroupMessage) {
 	NodeListLock.Unlock()
 }
 
+// Construct a protobuf message struct using partial membership list
 func newResponseToJoin(newcomerKey string) *pb.GroupMessage {
 	return &pb.GroupMessage{
 		Type:         pb.GroupMessage_GOSSIP,
@@ -93,6 +92,7 @@ func newResponseToJoin(newcomerKey string) *pb.GroupMessage {
 	}
 }
 
+// Select random number of peers in the membership list and marshalize to protobuf corresponding struct
 func randomPeersToPB(newcomerKey string) *pb.NodeInfoList {
 	pbNodeList := &pb.NodeInfoList{}
 	pbNodeList.Rows = []*pb.NodeInfoRow{}
