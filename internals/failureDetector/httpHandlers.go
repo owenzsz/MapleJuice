@@ -21,7 +21,7 @@ func enableSuspicionHandler(w http.ResponseWriter, r *http.Request) {
 func disableSuspicionHandler(w http.ResponseWriter, r *http.Request) {
 	NodeListLock.Lock()
 	USE_SUSPICION = false 
-	T_FAIL = 3 * time.Second
+	T_FAIL = 4 * time.Second
 	fmt.Fprintf(w, "Toggled USE_SUSPICION to %v\n", USE_SUSPICION)
 	NodeListLock.Unlock()
 }
