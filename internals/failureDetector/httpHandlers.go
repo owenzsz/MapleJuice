@@ -7,18 +7,24 @@ import (
 	"time"
 )
 
-//Suspicion toggle
-func toggleSuspicionHandler(w http.ResponseWriter, r *http.Request) {
+// Toggle to Gossip+Suspicion mode
+func enableSuspicionHandler(w http.ResponseWriter, r *http.Request) {
 	NodeListLock.Lock()
-	USE_SUSPICION = !USE_SUSPICION
-	if USE_SUSPICION {
-		T_FAIL = 2 * time.Second
-	} else {
-		T_FAIL = 4 * time.Second
-	}
+	USE_SUSPICION = true
+	T_FAIL = 2 * time.Second
+	GOSSIP_RATE = 400 * time.Millisecond
 	fmt.Fprintf(w, "Toggled USE_SUSPICION to %v\n", USE_SUSPICION)
 	NodeListLock.Unlock()
-} 
+}
+
+// Toggle to Gossip+Suspicion mode
+func disableSuspicionHandler(w http.ResponseWriter, r *http.Request) {
+	NodeListLock.Lock()
+	USE_SUSPICION = false 
+	T_FAIL = 3 * time.Second
+	fmt.Fprintf(w, "Toggled USE_SUSPICION to %v\n", USE_SUSPICION)
+	NodeListLock.Unlock()
+}
 
 // Message drop rate handler
 func messageDropRateHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +45,8 @@ func messageDropRateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleExternalSignals() {
-	http.HandleFunc("/toggleSuspicion", toggleSuspicionHandler)
+	http.HandleFunc("/enableSuspicion", enableSuspicionHandler)
+	http.HandleFunc("/disableSuspicion", disableSuspicionHandler)
 	http.HandleFunc("/updateMessageDropRate", messageDropRateHandler)
 	http.ListenAndServe("0.0.0.0:8080", nil)
 }

@@ -7,9 +7,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
-// helper function to randomly select B nodes to gossip to
+// Helper function to randomly select <= NUM nodes to gossip to
 func randomlySelectNodes(num int) []*Node {
 	num = min(num, len(NodeInfoList)-1)
 	keys := make([]string, 0, len(NodeInfoList))
@@ -37,6 +38,7 @@ func randomlySelectNodes(num int) []*Node {
 	return selectedNodes
 }
 
+// Get local node's ip:port address
 func getLocalNodeAddress() (string, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -47,7 +49,7 @@ func getLocalNodeAddress() (string, error) {
 	return key, nil
 }
 
-//Compress strings like "fa23-cs425-1805.cs.illinois.edu:55556:22097-09-05 97:23:35.319919" to the format of "05_319919"
+// Compress strings like "fa23-cs425-1805.cs.illinois.edu:55556:22097-09-05 97:23:35.319919" to the format of "05_319919"
 func compressServerTimeID(input string) string {
 	parts := strings.Split(input, "-")
 	serverNumber := parts[2][2:4]
@@ -56,6 +58,7 @@ func compressServerTimeID(input string) string {
 	return result
 }
 
+// Decompress the compressed ID. See compressServerTimeID()
 func decompressServerTimeID(input string) string {
     parts := strings.Split(input, "_")
     serverNumber := parts[0]
@@ -80,6 +83,24 @@ func min(a int, b int) int {
 	return b
 }
 
+// Log setup function. Should call before starting anything
+func EnableLog() {
+	f, err := os.OpenFile("log.log", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+		os.Exit(1)
+	}
+
+	log.SetOutput(f)
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Println("Cannot get host name ", err.Error())
+		os.Exit(1)
+	}
+	log.SetPrefix(hostname + ": ")
+}
+
 // helper function to write log
 func customLog(printToStdout bool, format string, v ...interface{}) {
 	var mode = ""
@@ -91,12 +112,12 @@ func customLog(printToStdout bool, format string, v ...interface{}) {
 	}
 	msg := fmt.Sprintf(format, v...)
 	if printToStdout {
-		fmt.Println(msg)
+		fmt.Printf("[%v] %s\n", time.Now().Format("2006-01-02 15:04:05"), msg)
 	}
 	log.Printf("Current Mode[%s]; message drop rate[%s] - %s\n", mode, messaegeDropRate, msg)
 }
 
-// determine whether should drop message based on manually set message drop rate
+// Determine whether should drop message based on manually set message drop rate
 func shouldDropMessage() bool {
 	return rand.Float64() < MESSAGE_DROP_RATE
 }
