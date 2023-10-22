@@ -20,7 +20,7 @@ func enableSuspicionHandler(w http.ResponseWriter, r *http.Request) {
 // Toggle to Gossip+Suspicion mode
 func disableSuspicionHandler(w http.ResponseWriter, r *http.Request) {
 	NodeListLock.Lock()
-	USE_SUSPICION = false 
+	USE_SUSPICION = false
 	T_FAIL = 4 * time.Second
 	fmt.Fprintf(w, "Toggled USE_SUSPICION to %v\n", USE_SUSPICION)
 	NodeListLock.Unlock()

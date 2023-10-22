@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"cs425-mp/internals/global"
 	"fmt"
 	"io"
 	"net"
@@ -17,8 +18,6 @@ var (
 		"fa23-cs425-1805.cs.illinois.edu", "fa23-cs425-1806.cs.illinois.edu",
 		"fa23-cs425-1807.cs.illinois.edu", "fa23-cs425-1808.cs.illinois.edu",
 		"fa23-cs425-1809.cs.illinois.edu", "fa23-cs425-1810.cs.illinois.edu"}
-
-	PORT = "55555"
 )
 
 type Stat struct {
@@ -64,7 +63,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			go func(__i int, addr string) {
 				defer wg.Done()
 				//send query to all VMs
-				stats[__i] = RemoteQueryAndPrint(addr+":"+PORT, query)
+				stats[__i] = RemoteQueryAndPrint(addr+":"+global.LOGGER_PORT, query)
 			}(i, address)
 		}
 		wg.Wait() //barrier
