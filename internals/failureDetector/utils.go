@@ -1,6 +1,7 @@
 package failureDetector
 
 import (
+	"cs425-mp/internals/global"
 	"fmt"
 	"log"
 	"math/rand"
@@ -45,7 +46,7 @@ func getLocalNodeAddress() (string, error) {
 		fmt.Println("Error getting host name: ", err)
 		return "", err
 	}
-	key := hostname + ":" + PORT
+	key := hostname + ":" + global.FD_PORT
 	return key, nil
 }
 
@@ -60,11 +61,11 @@ func compressServerTimeID(input string) string {
 
 // Decompress the compressed ID. See compressServerTimeID()
 func decompressServerTimeID(input string) string {
-    parts := strings.Split(input, "_")
-    serverNumber := parts[0]
+	parts := strings.Split(input, "_")
+	serverNumber := parts[0]
 	millisecond := parts[1]
-    decompressedID := fmt.Sprintf("fa23-cs425-18%s.cs.illinois.edu:55556:22097-09-05 97:23:35.%s", serverNumber, millisecond)
-    return decompressedID
+	decompressedID := fmt.Sprintf("fa23-cs425-18%s.cs.illinois.edu:55556:22097-09-05 97:23:35.%s", serverNumber, millisecond)
+	return decompressedID
 }
 
 // Given a nodeKey in format of [machine_number]_[version_number], extract the [hostname]:[port] as a string

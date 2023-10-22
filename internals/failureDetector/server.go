@@ -1,18 +1,20 @@
 package failureDetector
 
 import (
+	"cs425-mp/internals/global"
+	pb "cs425-mp/protobuf"
 	"fmt"
 	"math/rand"
 	"net"
 	"os"
 	"time"
-	pb "cs425-mp/protobuf"
+
 	"google.golang.org/protobuf/proto"
 )
 
 // listen to group messages from other nodes and dispatch messages to corresponding handler pipelines
 func HandleGroupMessages() {
-	conn, err := net.ListenPacket("udp", ":"+PORT)
+	conn, err := net.ListenPacket("udp", ":"+global.FD_PORT)
 	if err != nil {
 		fmt.Println("Error listening to UDP packets: ", err)
 		os.Exit(1)
@@ -73,6 +75,14 @@ func processJoinMessage(conn net.PacketConn, from net.Addr, message *pb.GroupMes
 	if err != nil {
 		fmt.Printf("Failed to write response to JOIN message: %v\n", err.Error())
 	}
+}
+
+func GetAllNodeAddresses() []string {
+	var allNodesAddresses []string
+	for _, node := range NodeInfoList {
+		allNodesAddresses = append(allNodesAddresses, node.NodeAddr)
+	}
+	return allNodesAddresses
 }
 
 // Process GOSSIP/LEAVE messages, updating membership list as needed

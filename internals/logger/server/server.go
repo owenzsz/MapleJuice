@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"cs425-mp/internals/global"
 	"fmt"
 	"io"
 	"net"
@@ -13,12 +14,11 @@ import (
 
 const (
 	HOST = "0.0.0.0"
-	PORT = "55555"
 )
 
 func Start() {
 	//start monitoring requests on port 55555
-	server, err := net.Listen("tcp", HOST+":"+PORT)
+	server, err := net.Listen("tcp", HOST+":"+global.LOGGER_PORT)
 	if err != nil {
 		fmt.Printf("Error listening: %v\n", err.Error())
 		os.Exit(1)

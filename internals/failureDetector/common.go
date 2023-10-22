@@ -11,7 +11,6 @@ import (
 
 const (
 	INTRODUCER_ADDRESS = "fa23-cs425-1801.cs.illinois.edu:55556" // Introducer node's receiving address
-	PORT               = "55556"
 	CONN_TIMEOUT       = 500 * time.Millisecond
 )
 
@@ -50,6 +49,7 @@ const (
 	Failed
 	Left
 )
+
 // stringify helper for StatusType
 func (e StatusType) String() string {
 	switch e {
@@ -63,6 +63,7 @@ func (e StatusType) String() string {
 		return "Unknown status type. Please check StatusType enum"
 	}
 }
+
 // visualization helper for StatusType
 func (s StatusType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
@@ -173,7 +174,7 @@ func nodeInfoListToPB() *pb.NodeInfoList {
 	return pbNodeList
 }
 
-// Decode incoming protobuf representation of membership to local representation 
+// Decode incoming protobuf representation of membership to local representation
 func pBToNodeInfoList(incomingNodeList *pb.NodeInfoList) map[string]*Node {
 	newNodeList := make(map[string]*Node)
 	for _, row := range incomingNodeList.GetRows() {
