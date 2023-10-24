@@ -13,7 +13,7 @@ import (
 
 // Helper function to randomly select <= NUM nodes to gossip to
 func randomlySelectNodes(num int) []*Node {
-	num = min(num, len(NodeInfoList)-1)
+	num = global.Min(num, len(NodeInfoList)-1)
 	keys := make([]string, 0, len(NodeInfoList))
 	for k := range NodeInfoList {
 		// do not add self to target list
@@ -46,8 +46,7 @@ func getLocalNodeAddress() (string, error) {
 		fmt.Println("Error getting host name: ", err)
 		return "", err
 	}
-	key := hostname + ":" + global.FD_PORT
-	return key, nil
+	return hostname, nil
 }
 
 // Compress strings like "fa23-cs425-1805.cs.illinois.edu:55556:22097-09-05 97:23:35.319919" to the format of "05_319919"
@@ -64,24 +63,16 @@ func decompressServerTimeID(input string) string {
 	parts := strings.Split(input, "_")
 	serverNumber := parts[0]
 	millisecond := parts[1]
-	decompressedID := fmt.Sprintf("fa23-cs425-18%s.cs.illinois.edu:55556:22097-09-05 97:23:35.%s", serverNumber, millisecond)
+	decompressedID := fmt.Sprintf("fa23-cs425-18%s.cs.illinois.edu:22097-09-05 97:23:35.%s", serverNumber, millisecond)
 	return decompressedID
 }
 
-// Given a nodeKey in format of [machine_number]_[version_number], extract the [hostname]:[port] as a string
+// Given a nodeKey in format of [machine_number]_[version_number], extract the [hostname] as a string
 func GetAddrFromNodeKey(nodeKey string) string {
 	nodeKey = decompressServerTimeID(nodeKey)
 	idSplitted := strings.Split(nodeKey, ":")
 	peer_name := idSplitted[0]
-	peer_port := idSplitted[1]
-	return peer_name + ":" + peer_port
-}
-
-func min(a int, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+	return peer_name
 }
 
 // Log setup function. Should call before starting anything
@@ -121,4 +112,8 @@ func customLog(printToStdout bool, format string, v ...interface{}) {
 // Determine whether should drop message based on manually set message drop rate
 func shouldDropMessage() bool {
 	return rand.Float64() < MESSAGE_DROP_RATE
+}
+
+func addPortNumberToNodeAddr(nodeAddr string) string {
+	return nodeAddr + ":" + global.FD_PORT
 }
