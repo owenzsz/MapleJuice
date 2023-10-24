@@ -26,7 +26,8 @@ var (
 		fileToVMMap: make(map[string]map[string]Empty), // go does not have sets, so we used a map with empty value to repersent set
 		VMToFileMap: make(map[string]map[string]Empty),
 	}
-	HOSTNAME string
+	HOSTNAME   string
+	FD_CHANNEL chan string // channel to communicate with FD, same as the fd.SDFS_CHANNEL
 )
 
 type MemTable struct {
@@ -46,6 +47,40 @@ func init() {
 		panic(err)
 	}
 	HOSTNAME = hn
+}
+
+func SetFDChannel(ch chan string) {
+	FD_CHANNEL = ch
+}
+
+func ObserveFDChannel() {
+	for {
+		msg := <-FD_CHANNEL
+		fmt.Printf("Received message from FD: %s\n", msg)
+		components := strings.Split(msg, ":")
+		messageType := components[0]
+		nodeAddr := components[1]
+		if messageType == "Failed" {
+			go handleNodeFailure(nodeAddr)
+		}
+	}
+}
+
+func handleNodeFailure(failedNodeAddr string) {
+	//find out all the files that the failed node has
+	filesToReplicate := memTable.VMToFileMap[failedNodeAddr]
+	//for each file, get a list of alived machines that contain the file
+	for fileName := range filesToReplicate {
+		replicas := listSDFSFileVMs(fileName)
+		replicaSize := len(replicas)
+		// randomly select a machine to replicate the file
+		// if the current machine is selected, replicate the file
+		for replicaSize < NUM_WRITE {
+			//randomly select an alive machine, send message to it to ask it to replicate the file
+		}
+	}
+	//remove the VM from the mem table
+	delete(memTable.VMToFileMap, failedNodeAddr)
 }
 
 // update mem tables
@@ -108,8 +143,10 @@ func handleConnection(conn net.Conn) {
 			processGetMessage(request, conn)
 		case pb.SDFSRequestType_PUT_REQ:
 			processPutMessage(request, conn)
-		case pb.SDFSRequestType_DELETE_REQ:
-			processDeleteMessage(request, conn)
+		case pb.SDFSRequestType_DELETE_REQ_LEADER:
+			processDeleteMessageLeader(request, conn)
+		case pb.SDFSRequestType_DELETE_REQ_FOLLOWER:
+			processDeleteMessageFollower(request, conn)
 		case pb.SDFSRequestType_LS_REQ:
 			processLSMessage(request, conn)
 		case pb.SDFSRequestType_STORE_REQ:
@@ -120,7 +157,6 @@ func handleConnection(conn net.Conn) {
 }
 
 func processGetMessage(message *pb.SDFSRequest, conn net.Conn) {
-	fmt.Println("Received Get Message")
 	fileName := message.SdfsFileName
 	vmList := listSDFSFileVMs(fileName)
 	response := &pb.SDFSResponse{
@@ -129,13 +165,12 @@ func processGetMessage(message *pb.SDFSRequest, conn net.Conn) {
 	}
 	responseBytes, err := proto.Marshal(response)
 	if err != nil {
-		fmt.Printf("Failed to marshal GetResponse: %v\n", err.Error())
+		fmt.Printf("Failed to marshal Get Response: %v\n", err.Error())
 	}
 	conn.Write(responseBytes)
 }
 
 func processPutMessage(message *pb.SDFSRequest, conn net.Conn) {
-	fmt.Println("Received Put Message")
 	fileName := message.SdfsFileName
 	var targetReplicas []string
 	val, exists := memTable.fileToVMMap[fileName]
@@ -153,27 +188,53 @@ func processPutMessage(message *pb.SDFSRequest, conn net.Conn) {
 	}
 	responseBytes, err := proto.Marshal(response)
 	if err != nil {
-		fmt.Printf("Failed to marshal GetResponse: %v\n", err.Error())
+		fmt.Printf("Failed to marshal Put Response: %v\n", err.Error())
+	}
+	_, err = conn.Write(responseBytes)
+	if err != nil {
+		fmt.Println("Error writing to TCP: ", err)
+		return
+	}
+}
+
+func processDeleteMessageLeader(message *pb.SDFSRequest, conn net.Conn) {
+	if !isCurrentNodeLeader() {
+		fmt.Println("Not leader, cannot process delete message")
+		return
+	}
+
+	fileName := message.SdfsFileName
+	vmList := listSDFSFileVMs(fileName)
+	response := sendDeleteFileMessageToReplicaNodes(fileName, vmList)
+	responseBytes, err := proto.Marshal(response)
+	if err != nil {
+		fmt.Printf("Failed to marshal Delete Response: %v\n", err.Error())
+	}
+	conn.Write(responseBytes)
+	memTable.delete(fileName)
+}
+
+func processDeleteMessageFollower(message *pb.SDFSRequest, conn net.Conn) {
+	fileName := message.SdfsFileName
+	err := deleteLocalSDFSFile(fileName)
+	response := &pb.SDFSResponse{
+		ResponseType: pb.SDFSResponseType_DELETE_RES_LEADER,
+	}
+	if err != nil {
+		fmt.Printf("Failed to delete local file : %v\n", err)
+		response.Error = err.Error()
+		response.ResponseStatus = pb.SDFSResponseStatus_RES_STATUS_FAILED
+	} else {
+		response.ResponseStatus = pb.SDFSResponseStatus_RES_STATUS_OK
+	}
+	responseBytes, err := proto.Marshal(response)
+	if err != nil {
+		fmt.Printf("Failed to marshal Delete Response: %v\n", err.Error())
 	}
 	conn.Write(responseBytes)
 }
 
-func processDeleteMessage(message *pb.SDFSRequest, conn net.Conn) {
-	fmt.Println("Received Delete Message")
-	fileName := message.SdfsFileName
-	// err := deleteLocalSDFSFile(fileName)
-	// if err != nil {
-	// 	fmt.Printf("Failed to delete local file : %v\n", err)
-	// 	return
-	// }
-	memTable.delete(fileName)
-	//TODO: finish the implementation of delete message
-	//1. if the current server is the leader, send the list of VMs that have the current file
-	//2. if the current server is not the leader, check if the file exists locally and delete it
-}
-
 func processLSMessage(message *pb.SDFSRequest, conn net.Conn) {
-	fmt.Println("Received LS Message")
 	fileName := message.SdfsFileName
 	vmList := listSDFSFileVMs(fileName)
 	response := &pb.SDFSResponse{
@@ -188,9 +249,8 @@ func processLSMessage(message *pb.SDFSRequest, conn net.Conn) {
 }
 
 func processStoreMessage(message *pb.SDFSRequest, conn net.Conn) {
-	fmt.Println("Received Store Message")
 	requestorHostName := message.VM
-	fileNameList := getAllLocalSDFSFilesForVM(requestorHostName)
+	fileNameList := getAllSDFSFilesForVM(requestorHostName)
 	response := &pb.SDFSResponse{
 		ResponseType:  pb.SDFSResponseType_LS_RES,
 		SdfsFileNames: fileNameList,
@@ -235,7 +295,6 @@ func putFile(localFileName string, sdfsFileName string) {
 	for _, r := range targetReplicas {
 		targetHostName := getScpHostNameFromHostName(r)
 		remotePath := targetHostName + ":" + filepath.Join(SDFS_PATH, sdfsFileName)
-		fmt.Printf("Remote path is: %s\n", remotePath)
 		cmd := exec.Command("scp", localFileName, remotePath)
 		err := cmd.Start()
 		if err != nil {
@@ -249,7 +308,7 @@ func putFile(localFileName string, sdfsFileName string) {
 			return
 		}
 	}
-	fmt.Printf("Put file to 4 replicas: %+q\n", targetReplicas)
+	fmt.Printf("Put file to replicas: %+q\n", targetReplicas)
 }
 
 func deleteFile(sdfsFileName string) {
@@ -258,8 +317,12 @@ func deleteFile(sdfsFileName string) {
 		fmt.Printf("Failed to delete local file : %v\n", err)
 		return
 	}
-	memTable.delete(sdfsFileName)
-	sendDeleteFileMessage(sdfsFileName)
+	res := sendDeleteFileMessageToLeader(sdfsFileName)
+	if res.ResponseStatus == pb.SDFSResponseStatus_RES_STATUS_OK {
+		fmt.Printf("Successfully deleted file %s\n", sdfsFileName)
+	} else {
+		fmt.Printf("Failed to delete file %s: %s\n", sdfsFileName, res.Error)
+	}
 }
 
 func deleteLocalSDFSFile(sdfsFileName string) error {
@@ -270,7 +333,6 @@ func deleteLocalSDFSFile(sdfsFileName string) error {
 	for _, file := range files {
 		filePath := filepath.Join(SDFS_PATH, file.Name())
 		if !file.IsDir() && strings.HasPrefix(file.Name(), sdfsFileName) {
-			fmt.Printf("Try to delete file %s.\n", file.Name())
 			err := os.Remove(filePath)
 			if err != nil {
 				return err
@@ -292,11 +354,13 @@ func store() {
 	fmt.Printf("%+q\n", fileNameList)
 }
 
-//
-
 // Send messages to leader server
 func sendMesageToLeader(messageBytes []byte) *pb.SDFSResponse {
-	conn, err := net.Dial("tcp", LEADER_ADDRESS+":"+global.SDFS_PORT)
+	return sendMesageToNode(LEADER_ADDRESS, messageBytes)
+}
+
+func sendMesageToNode(nodeAddr string, messageBytes []byte) *pb.SDFSResponse {
+	conn, err := net.Dial("tcp", nodeAddr+":"+global.SDFS_PORT)
 	if err != nil {
 		fmt.Println("Error dialing TCP: ", err)
 		return nil
@@ -346,9 +410,9 @@ func sendPutFileMessage(fileName string) *pb.SDFSResponse {
 	return res
 }
 
-func sendDeleteFileMessage(fileName string) *pb.SDFSResponse {
+func sendDeleteFileMessageToLeader(fileName string) *pb.SDFSResponse {
 	deleteMessage := &pb.SDFSRequest{
-		RequestType:  pb.SDFSRequestType_DELETE_REQ,
+		RequestType:  pb.SDFSRequestType_DELETE_REQ_LEADER,
 		SdfsFileName: fileName,
 	}
 	messageBytes, err := proto.Marshal(deleteMessage)
@@ -357,6 +421,30 @@ func sendDeleteFileMessage(fileName string) *pb.SDFSResponse {
 	}
 	res := sendMesageToLeader(messageBytes)
 	return res
+}
+
+func sendDeleteFileMessageToReplicaNodes(fileName string, replicas []string) *pb.SDFSResponse {
+	deleteMessage := &pb.SDFSRequest{
+		RequestType:  pb.SDFSRequestType_DELETE_REQ_FOLLOWER,
+		SdfsFileName: fileName,
+	}
+	messageBytes, err := proto.Marshal(deleteMessage)
+	if err != nil {
+		fmt.Printf("Failed to marshal DeleteMessage: %v\n", err.Error())
+	}
+	response := &pb.SDFSResponse{
+		ResponseType:   pb.SDFSResponseType_DELETE_RES_FOLLOWER,
+		ResponseStatus: pb.SDFSResponseStatus_RES_STATUS_OK,
+	}
+	for _, r := range replicas {
+		res := sendMesageToNode(r, messageBytes)
+		if res.ResponseStatus == pb.SDFSResponseStatus_RES_STATUS_FAILED {
+			response.Error = res.Error
+			response.ResponseStatus = pb.SDFSResponseStatus_RES_STATUS_FAILED
+			continue
+		}
+	}
+	return response
 }
 
 func sendLSMessage(fileName string) *pb.SDFSResponse {

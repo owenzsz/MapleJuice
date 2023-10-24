@@ -77,12 +77,24 @@ func processJoinMessage(conn net.PacketConn, from net.Addr, message *pb.GroupMes
 	}
 }
 
+// get all node's addresses
 func GetAllNodeAddresses() []string {
 	var allNodesAddresses []string
 	for _, node := range NodeInfoList {
 		allNodesAddresses = append(allNodesAddresses, node.NodeAddr)
 	}
 	return allNodesAddresses
+}
+
+func IsNodeAlive(nodeAddr string) bool {
+	NodeListLock.Lock()
+	defer NodeListLock.Unlock()
+	for _, node := range NodeInfoList {
+		if node.NodeAddr == nodeAddr && node.Status == Alive {
+			return true
+		}
+	}
+	return false
 }
 
 // Process GOSSIP/LEAVE messages, updating membership list as needed
@@ -115,7 +127,7 @@ func randomPeersToPB(newcomerKey string) *pb.NodeInfoList {
 	}
 	rand.Shuffle(len(keyPool), func(i, j int) { keyPool[i], keyPool[j] = keyPool[j], keyPool[i] })
 
-	numPeersToSend := min(NUM_NODES_TO_GOSSIP, len(keyPool))
+	numPeersToSend := global.Min(NUM_NODES_TO_GOSSIP, len(keyPool))
 
 	for _, nodeID := range keyPool {
 		nodeInfo := NodeInfoList[nodeID]
