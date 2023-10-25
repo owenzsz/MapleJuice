@@ -1,0 +1,33 @@
+syntax = "proto3";
+package cs425_mp3;
+
+option go_package = "./protobuf";
+
+service LeaderElection {
+
+    // Gather vote from members
+    rpc RequestVotes(VoteRequest) returns (VoteResponse) {} 
+
+    // HeartBeat between leader and followers
+    rpc HeartBeat(Ping) returns (Pong) {}
+}
+
+message VoteRequest {
+    int64 term = 1;
+    int32 candidateID = 2;
+}
+
+message VoteResponse {
+    int64 term = 1;
+    bool voteGranted = 2;
+}
+
+message Ping {
+    int64 term = 1;
+    int32 leaderID = 2;
+}
+
+message Pong {
+    int64 term = 1;
+    bool success = 2;
+}

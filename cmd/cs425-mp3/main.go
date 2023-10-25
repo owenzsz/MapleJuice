@@ -5,6 +5,7 @@ import (
 	"cs425-mp/internals/failureDetector"
 	"fmt"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -14,6 +15,9 @@ func main() {
 	SDFS.SetFDChannel(inputChan)
 	go startFailureDetector(&wg)
 	startSDFS(&wg)
+	startLeaderElection(&wg)
+	go monitorLeader()
+	
 	wg.Wait()
 
 }
@@ -70,4 +74,25 @@ func startSDFS(wg *sync.WaitGroup) {
 		defer wg.Done()
 		SDFS.ObserveFDChannel()
 	}()
+}
+
+func startLeaderElection(wg *sync.WaitGroup) {
+	wg.Add(1)
+	fmt.Println("Leader Election running in background")
+	go func() {
+		defer wg.Done()
+		SDFS.StartLeaderElection()
+	}()
+}
+
+func monitorLeader() {
+	for {
+		leaderID := SDFS.GetLeaderID()
+		if leaderID != -1 {
+			fmt.Printf("*** Current Leader is VM %v ***\n", leaderID)
+		} else {
+			fmt.Println("*** Current Leader is NIL ***")
+		}
+		time.Sleep(5*time.Second)
+	}
 }
