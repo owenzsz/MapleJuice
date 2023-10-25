@@ -2,11 +2,14 @@ package SDFS
 
 import (
 	"crypto/md5"
-	"cs425-mp/internals/failureDetector"
 	"cs425-mp/internals/global"
 	"fmt"
+	"math/rand"
+	"os"
 	"strconv"
 	"strings"
+	"time"
+	fd "cs425-mp/internals/failureDetector"
 )
 
 type Empty struct{}
@@ -27,7 +30,7 @@ func isCurrentNodeLeader() bool {
 }
 
 func getDefaultReplicaVMAddresses(id string) []string {
-	membershipList := failureDetector.GetAllNodeAddresses()
+	membershipList := fd.GetAllNodeAddresses()
 	replicaSize := global.Min(4, len(membershipList))
 
 	replicas := make([]string, replicaSize)
@@ -44,7 +47,7 @@ func getDefaultReplicaVMAddresses(id string) []string {
 		i := 0
 		for i < replicaSize {
 			hostName := getFullHostNameFromID(fmt.Sprintf("%v", ((val+i)%10 + 1)))
-			if failureDetector.IsNodeAlive(hostName) {
+			if fd.IsNodeAlive(hostName) {
 				replicas[i] = hostName
 				i++
 			}
@@ -108,3 +111,54 @@ func listSDFSFileVMs(sdfsFileName string) []string {
 	}
 	return VMList
 }
+
+// Get local server ID based on hostname. Each machines should have a unique ID defined in global.go
+// Returns -1 if not defined
+func getLocalServerID() int {
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Println("Error getting host name: ", err)
+		return -1;
+	}
+	for i, addr := range global.SERVER_ADDRS {
+		if hostname == addr {
+			return i+1;
+		}
+	}
+	return -1;
+}
+
+// Returns server's hostname given its ID
+// Returns "" empty string if ID is not defined
+func getServerName(id int) string {
+	if (id < 1 || id > len(global.SERVER_ADDRS)) {
+		return ""
+	}
+	return global.SERVER_ADDRS[id-1];
+}
+
+
+// Generate random duration bewteen 3-5 seconds
+func randomDuration() time.Duration {
+	rand.Seed(time.Now().UnixNano())
+	n := rand.Intn(3) + 3
+	return time.Duration(n) * time.Second
+}
+
+func getAlivePeersAddrs() []string {
+	localServerAddr := getServerName(getLocalServerID())
+	fd.NodeListLock.Lock()
+	addrList := []string{}
+	for _, node := range fd.NodeInfoList {
+		nodeName := node.NodeAddr
+		if (nodeName != localServerAddr) && (node.Status == fd.Alive || node.Status == fd.Suspected){
+			addrList = append(addrList, nodeName)
+		}
+	}
+	fd.NodeListLock.Unlock()
+
+	return addrList
+}
+
+
