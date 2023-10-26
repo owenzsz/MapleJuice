@@ -43,7 +43,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			}
 			localFileName := splitted[1]
 			sdfsFileName := splitted[2]
-			putFile(localFileName, sdfsFileName)
+			handlePutFile(localFileName, sdfsFileName)
 		} else if command == "get" {
 			if len(splitted) != 3 {
 				fmt.Printf("Expected 3 components for get command, but got %v \n", len(splitted))
@@ -51,27 +51,27 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			}
 			sdfsFileName := splitted[1]
 			localFileName := splitted[2]
-			getFile(sdfsFileName, localFileName)
+			handleGetFile(sdfsFileName, localFileName)
 		} else if command == "delete" {
 			if len(splitted) != 2 {
 				fmt.Printf("Expected 2 components for delete command, but got %v \n", len(splitted))
 				continue
 			}
 			sdfsFileName := splitted[1]
-			deleteFile(sdfsFileName)
+			handleDeleteFile(sdfsFileName)
 		} else if command == "ls" {
 			if len(splitted) != 2 {
 				fmt.Printf("Expected 2 components for ls command, but got %v \n", len(splitted))
 				continue
 			}
 			sdfsFileName := splitted[1]
-			LS(sdfsFileName)
+			handleListFileHolders(sdfsFileName)
 		} else if command == "store" {
 			if len(splitted) != 1 {
 				fmt.Printf("Expected 1 components for store command, but got %v \n", len(splitted))
 				continue
 			}
-			store()
+			handleListLocalFiles()
 		} else {
 			fmt.Println("Command Not Supported")
 		}

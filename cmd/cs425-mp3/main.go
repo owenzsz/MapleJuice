@@ -66,13 +66,13 @@ func startSDFS(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		SDFS.HandleSDFSMessages()
+		SDFS.ObserveFDChannel()
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		SDFS.ObserveFDChannel()
+		SDFS.StartSDFSServer()
 	}()
 }
 

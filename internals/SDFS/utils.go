@@ -2,17 +2,39 @@ package SDFS
 
 import (
 	"crypto/md5"
+	fd "cs425-mp/internals/failureDetector"
 	"cs425-mp/internals/global"
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-	fd "cs425-mp/internals/failureDetector"
 )
 
 type Empty struct{}
+
+// update mem tables
+func (mt *MemTable) delete(sdfsFileName string) {
+	for _, files := range mt.VMToFileMap {
+		delete(files, sdfsFileName)
+	}
+	delete(mt.fileToVMMap, sdfsFileName)
+}
+
+func (mt *MemTable) put(sdfsFileName string, replicas []string) {
+	if _, exists := mt.fileToVMMap[sdfsFileName]; !exists {
+		mt.fileToVMMap[sdfsFileName] = make(map[string]Empty)
+	}
+	for _, r := range replicas {
+		if _, exists := mt.VMToFileMap[r]; !exists {
+			mt.VMToFileMap[r] = make(map[string]Empty)
+		}
+		mt.VMToFileMap[r][sdfsFileName] = Empty{}
+		mt.fileToVMMap[sdfsFileName][r] = Empty{}
+	}
+}
 
 func hashFileName(fileName string) string {
 	hash := md5.Sum([]byte(fileName))
@@ -33,11 +55,13 @@ func getDefaultReplicaVMAddresses(id string) []string {
 	membershipList := fd.GetAllNodeAddresses()
 	replicaSize := global.Min(4, len(membershipList))
 
-	replicas := make([]string, replicaSize)
+	replicas := make([]string, 0)
 
 	if replicaSize < NUM_WRITE {
 		for i := 0; i < replicaSize; i++ {
-			replicas[i] = membershipList[i]
+			if fd.IsNodeAlive(membershipList[i]) {
+				replicas = append(replicas, membershipList[i])
+			}
 		}
 	} else {
 		val, err := strconv.Atoi(id)
@@ -45,13 +69,13 @@ func getDefaultReplicaVMAddresses(id string) []string {
 			fmt.Println("Input id cannot be parsed to int")
 		}
 		i := 0
-		for i < replicaSize {
+
+		for len(replicas) < replicaSize {
 			hostName := getFullHostNameFromID(fmt.Sprintf("%v", ((val+i)%10 + 1)))
 			if fd.IsNodeAlive(hostName) {
-				replicas[i] = hostName
-				i++
+				replicas = append(replicas, hostName)
 			}
-
+			i++
 		}
 	}
 	return replicas
@@ -119,23 +143,23 @@ func getLocalServerID() int {
 	hostname, err := os.Hostname()
 	if err != nil {
 		fmt.Println("Error getting host name: ", err)
-		return -1;
+		return -1
 	}
 	for i, addr := range global.SERVER_ADDRS {
 		if hostname == addr {
-			return i+1;
+			return i + 1
 		}
 	}
-	return -1;
+	return -1
 }
 
 // Returns server's hostname given its ID
 // Returns "" empty string if ID is not defined
 func getServerName(id int) string {
-	if (id < 1 || id > len(global.SERVER_ADDRS)) {
+	if id < 1 || id > len(global.SERVER_ADDRS) {
 		return ""
 	}
-	return global.SERVER_ADDRS[id-1];
+	return global.SERVER_ADDRS[id-1]
 }
 
 
@@ -152,7 +176,7 @@ func getAlivePeersAddrs() []string {
 	addrList := []string{}
 	for _, node := range fd.NodeInfoList {
 		nodeName := node.NodeAddr
-		if (nodeName != localServerAddr) && (node.Status == fd.Alive || node.Status == fd.Suspected){
+		if (nodeName != localServerAddr) && (node.Status == fd.Alive || node.Status == fd.Suspected) {
 			addrList = append(addrList, nodeName)
 		}
 	}
@@ -161,4 +185,46 @@ func getAlivePeersAddrs() []string {
 	return addrList
 }
 
+// find elements in a that are not in b
+func findDisjointElements(A, B []string) []string {
+	// Create a map to store elements of array B
+	bMap := make(map[string]bool)
+	for _, elem := range B {
+		bMap[elem] = true
+	}
 
+	// Find elements in A that are not in B
+	var disjoint []string
+	for _, elem := range A {
+		if _, exists := bMap[elem]; !exists {
+			disjoint = append(disjoint, elem)
+		}
+	}
+
+	return disjoint
+}
+
+func deleteAllFiles(dir string) error {
+	// Open the directory.
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+
+	// Read directory entries.
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+
+	// Iterate over the directory entries and delete each file.
+	for _, name := range names {
+		filePath := filepath.Join(dir, name)
+		err = os.Remove(filePath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
