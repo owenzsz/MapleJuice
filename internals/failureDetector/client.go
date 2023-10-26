@@ -46,6 +46,7 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 			} else if sinceLastTimestamp > T_FAIL {
 				customLog(true, "Marking %v as failed, over time for %v time", key, sinceLastTimestamp.Seconds()-T_FAIL.Seconds())
 				node.Status = Failed
+				SDFS_CHANNEL <- fmt.Sprintf("Failed:%v", node.NodeAddr)
 				node.TimeStamp = time.Now()
 			}
 		case Failed, Left:
@@ -61,7 +62,7 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 					customLog(true, "Marking %v as from suspected to failed, over time for %v time", key, sinceLastTimestamp.Seconds()-T_FAIL.Seconds())
 				}
 				node.Status = Failed
-				SDFS_CHANNEL <- fmt.Sprintf("Failed: %v", node.NodeAddr)
+				SDFS_CHANNEL <- fmt.Sprintf("Failed:%v", node.NodeAddr)
 				node.TimeStamp = time.Now()
 			}
 		}
