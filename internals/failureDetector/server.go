@@ -46,9 +46,9 @@ func HandleGroupMessages() {
 
 		switch groupMessage.Type {
 		case pb.GroupMessage_JOIN:
-			if INTRODUCER_ADDRESS != GetAddrFromNodeKey(LOCAL_NODE_KEY) {
-				continue
-			}
+			// if INTRODUCER_ADDRESS != GetAddrFromNodeKey(LOCAL_NODE_KEY) {
+			// 	continue
+			// }
 			processJoinMessage(conn, from, groupMessage)
 
 		case pb.GroupMessage_GOSSIP, pb.GroupMessage_LEAVE:

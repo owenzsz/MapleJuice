@@ -11,7 +11,7 @@ func main() {
 	// Enable logging
 	failureDetector.EnableLog()
 	// Join the group and initialize local states
-	err := failureDetector.JoinGroupAndInit()
+	err := failureDetector.JoinGroupAndInitByIntroducer()
 	if err != nil {
 		fmt.Printf("Cannot join the group: %v\n", err.Error())
 		return

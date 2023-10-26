@@ -118,7 +118,9 @@ func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 	wg.Wait()
 }
 
-func JoinGroupAndInit() error {
+
+// Join compute cluster without using an Introducer node. Need all machine's address hardcoded in global.go
+func JoinGroupAndInitByIntroducer() error {
 	// Populate the first entry in Node List
 	selfAddr := GetAddrFromNodeKey(LOCAL_NODE_KEY)
 	initialNodeList := map[string]*Node{
@@ -196,5 +198,90 @@ func JoinGroupAndInit() error {
 		return nil
 	}
 	return errors.New("failed to join the group after 5 tries")
+
+}
+
+// Join compute cluster without using an Introducer node. Need all machine's address hardcoded in global.go
+func JoinGroupAndInit() error {
+	// Populate the first entry in Node List
+	selfAddr := GetAddrFromNodeKey(LOCAL_NODE_KEY)
+	initialNodeList := map[string]*Node{
+		LOCAL_NODE_KEY: {
+			NodeAddr:  selfAddr,
+			SeqNo:     1,
+			Status:    Alive,
+			TimeStamp: time.Now(),
+		},
+	}
+	NodeListLock.Lock()
+	NodeInfoList = initialNodeList
+	NodeListLock.Unlock()
+	
+	// Construct JOIN Message
+	groupMessage := newMessageOfType(pb.GroupMessage_JOIN)
+	msg, err := proto.Marshal(groupMessage)
+	if err != nil {
+		fmt.Printf("Failed to marshal GroupMessage: %v\n", err.Error())
+	}
+
+	// We send JOIN message to all peers except local machine and hope at least one machine would respond with its membership list.
+	// If failed after trying every peer for 3 times, declare join failed.
+	for i:=0; i<3; i++ {
+		for _, peerAddr := range global.SERVER_ADDRS {
+			// skip local machine
+			if peerAddr == selfAddr {
+				continue
+			}
+			conn, err := net.Dial("udp", peerAddr+":"+global.FD_PORT)
+			if err != nil {
+				continue
+			}
+			defer conn.Close()
+			
+			err = conn.SetDeadline(time.Now().Add(2 * time.Second))
+			if err != nil {
+				continue
+			}
+
+			// Send JOIN message
+			_, err = conn.Write(msg)
+			customLog(false, "Sent Join message with size of %v bytes", len(msg))
+			if err != nil {
+				fmt.Println("Unable to send JOIN message")
+				continue
+			}
+
+			// Receive GOSSIP message
+			buffer := make([]byte, 4096)
+			n, err := conn.Read(buffer)
+			if err != nil {
+				// println("Read data failed:", err.Error())
+				continue
+			}
+
+			pbGroupMessage := &pb.GroupMessage{}
+			err = proto.Unmarshal(buffer[:n], pbGroupMessage)
+			if err != nil {
+				println("Failed to unmarshal GroupMessage" + err.Error())
+				continue
+			}
+
+			if pbGroupMessage.Type != pb.GroupMessage_GOSSIP {
+				println("Received something else other than GOSSIP from peers")
+				continue
+			}
+
+			peerRows := pbGroupMessage.NodeInfoList
+			newNodeInfoList := pBToNodeInfoList(peerRows)
+
+			// Merge local NodeInfoList ith newNodeInfoList
+			NodeListLock.Lock()
+			updateMembershipList(newNodeInfoList)
+			NodeListLock.Unlock()
+			return nil
+		}
+	}
+
+	return errors.New("failed to join the group after 3 tries")
 
 }

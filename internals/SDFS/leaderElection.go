@@ -56,7 +56,7 @@ func newMemberServer() *MemberServer {
 	}
 }
 
-func refreshDeadline(triggerBy string) {
+func refreshDeadline() {
 	s.electionDeadline = time.Now().Add(randomDuration())
 	// fmt.Printf("New election deadline is %v, reset by %s\n", s.electionDeadline, triggerBy)
 }
@@ -71,7 +71,7 @@ func (s *MemberServer) HeartBeat(ctx context.Context, ping *pb.Ping) (*pb.Pong, 
 		s.currentTerm = ping.Term
 		s.leaderID = ping.LeaderID
 		s.state = Follower
-		refreshDeadline("HeatBeat")
+		refreshDeadline()
 
 		return &pb.Pong{
 			Term:    s.currentTerm,
@@ -97,7 +97,7 @@ func (s *MemberServer) RequestVotes(ctx context.Context, request *pb.VoteRequest
 		s.state = Follower
 		s.votedFor = request.CandidateID
 		s.leaderID = -1
-		refreshDeadline("RequestVotes")
+		refreshDeadline()
 
 		return &pb.VoteResponse{
 			Term:        s.currentTerm,
@@ -173,10 +173,10 @@ func leaderTask() {
 					if err != nil {
 						// Check if the error is due to a timeout
 						if ctx.Err() == context.DeadlineExceeded {
-							fmt.Printf("gRPC call timed out after %s\n", timeout)
+							// fmt.Printf("gRPC call timed out after %s\n", timeout)
 							return
 						} else {
-							fmt.Printf("Failed to call Heartbeat: %v\n", err)
+							// fmt.Printf("Failed to call Heartbeat: %v\n", err)
 							return
 						}
 					}
@@ -189,7 +189,7 @@ func leaderTask() {
 					if pong.Term > s.currentTerm {
 						s.currentTerm = pong.Term
 						s.state = Follower
-						refreshDeadline("Leader Task")
+						refreshDeadline()
 					}
 
 					s.serverStateLock.Unlock()
@@ -233,7 +233,7 @@ func startElection() {
 	}
 	localID := getLocalServerID()
 	s.serverStateLock.Lock()
-	refreshDeadline("StartElection")
+	refreshDeadline()
 
 	// fmt.Printf("Next deadline is %v\n", s.electionDeadline)
 	originalState := s.state
@@ -280,10 +280,10 @@ func startElection() {
 			if err != nil {
 				// Check if the error is due to a timeout
 				if ctx.Err() == context.DeadlineExceeded {
-					fmt.Printf("gRPC call timed out after %s\n", timeout)
+					// fmt.Printf("gRPC call timed out after %s\n", timeout)
 					return
 				} else {
-					fmt.Printf("Failed to call RequestVotes: %v\n", err)
+					// fmt.Printf("Failed to call RequestVotes: %v\n", err)
 					return
 				}
 			}
@@ -298,7 +298,7 @@ func startElection() {
 				numVotes++
 				if numVotes >= global.QUORUM { // Quorum reached
 					s.state = Leader
-					fmt.Println("Promoted to leader")
+					// fmt.Println("Promoted to leader")
 					s.leaderID = int32(localID)
 					convertedToLeader = true
 					return
@@ -308,7 +308,7 @@ func startElection() {
 				// update current term and convert back to follower
 				s.currentTerm = voteResponse.Term
 				s.state = Follower
-				refreshDeadline("StartElection 2")
+				refreshDeadline()
 
 			}
 		}(hostname)

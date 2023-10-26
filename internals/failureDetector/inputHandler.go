@@ -94,7 +94,7 @@ func handleRejoin() {
 		return
 	}
 	updateLocalNodeKey()
-	err := JoinGroupAndInit()
+	err := JoinGroupAndInitByIntroducer()
 	if err != nil {
 		fmt.Printf("Cannot join the group: %v\n", err.Error())
 		return

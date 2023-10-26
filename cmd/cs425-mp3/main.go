@@ -17,7 +17,7 @@ func main() {
 	startSDFS(&wg)
 	startLeaderElection(&wg)
 	go monitorLeader()
-	
+
 	wg.Wait()
 
 }
@@ -26,13 +26,7 @@ func startFailureDetector(wg *sync.WaitGroup) {
 	fmt.Println("Failure Detector Started")
 	// Enable logging
 	failureDetector.EnableLog()
-	// Join the group and initialize local states
-	err := failureDetector.JoinGroupAndInit()
-	if err != nil {
-		fmt.Printf("Cannot join the group: %v\n", err.Error())
-		return
-	}
-
+	
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -53,6 +47,12 @@ func startFailureDetector(wg *sync.WaitGroup) {
 		// Periodic local state and memebrship refresh
 		failureDetector.PeriodicUpdate()
 	}()
+
+	// Join the group and initialize local states
+	for err := failureDetector.JoinGroupAndInit(); err != nil; err = failureDetector.JoinGroupAndInit() {
+		fmt.Printf("Not yet joined the cluster: %v\n", err.Error())
+	}
+	fmt.Println("Successfully joined cluster!")
 }
 
 func startSDFS(wg *sync.WaitGroup) {
@@ -93,6 +93,6 @@ func monitorLeader() {
 		} else {
 			fmt.Println("*** Current Leader is NIL ***")
 		}
-		time.Sleep(5*time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
