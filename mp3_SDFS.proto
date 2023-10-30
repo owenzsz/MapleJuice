@@ -5,8 +5,9 @@ option go_package = "./protobuf";
 
 service SDFS {
   rpc GetFile(GetRequest) returns (GetResponse);
+  rpc GetACK(GetACKRequest) returns (GetACKResponse);
   rpc PutFile(PutRequest) returns (PutResponse);
-  rpc UpdateLeaderFileTable (UpdateLeaderFileTableRequest) returns (UpdateLeaderFileTableResponse);
+  rpc PutACK(PutACKRequest) returns (PutACKResponse);
   rpc DeleteFileLeader(DeleteRequestLeader) returns (DeleteResponseLeader);
   rpc DeleteFileFollower(DeleteRequestFollower) returns (DeleteResponseFollower);
   rpc ListFileHolder(ListFileHolderRequest) returns (ListFileHolderResponse);
@@ -17,6 +18,7 @@ service SDFS {
 //Get
 message GetRequest {
   string fileName = 1;
+  string requesterAddress = 2;
 }
 
 message GetResponse {
@@ -24,9 +26,20 @@ message GetResponse {
   repeated string VMAddresses = 2;
 }
 
+//get ack
+message GetACKRequest {
+  string fileName = 1;
+  repeated string replicaAddresses = 3;
+}
+
+message GetACKResponse {
+  bool success = 1;
+}
+
 //Put
 message PutRequest {
   string fileName = 1;
+  string requesterAddress = 2;
 }
 
 message PutResponse {
@@ -34,13 +47,13 @@ message PutResponse {
   repeated string VMAddresses = 2;
 }
 
-//update leader file table request
-message UpdateLeaderFileTableRequest {
+//put ack
+message PutACKRequest {
   string fileName = 1;
-  repeated string replicaAddresses = 2;
+  repeated string replicaAddresses = 3;
 }
 
-message UpdateLeaderFileTableResponse {
+message PutACKResponse {
   bool success = 1;
 }
 

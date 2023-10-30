@@ -20,6 +20,31 @@ message NodeInfoList {
   repeated NodeInfoRow rows = 1;
 }
 
+
+
+message LeaderState {
+  message AddrList {
+    repeated string VM_addr = 1;
+  }
+  message FileList {
+    repeated string file_names = 1;
+  }
+  message FileLock {
+    repeated string ReadQueue = 1;
+    repeated string WriteQueue = 2;
+    int32 ReadCount = 3;
+    int32 WriteCount = 4;
+    int32 ConsecutiveReads = 5;
+    int32 ConsecutiveWrites = 6;
+  }
+  
+  int64 version = 1;
+  map<string, AddrList> FileToVMMap = 2;
+  map<string, FileList> VMToFileMap = 3;
+  map<string, FileLock> FileLocks = 4;
+}
+
+
 message GroupMessage {
   enum MessageType {
     JOIN = 0;
@@ -29,4 +54,5 @@ message GroupMessage {
 
   MessageType type = 1;
   NodeInfoList node_info_list = 2;
+  optional LeaderState leader_state = 3; // Only make sense in MP3 for leader state replication.
 }

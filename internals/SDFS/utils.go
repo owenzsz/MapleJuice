@@ -15,26 +15,26 @@ import (
 
 type Empty struct{}
 
-// update mem tables
-func (mt *MemTable) delete(sdfsFileName string) {
-	for _, files := range mt.VMToFileMap {
-		delete(files, sdfsFileName)
-	}
-	delete(mt.fileToVMMap, sdfsFileName)
-}
+// // update mem tables
+// func (mt *MemTable) delete(sdfsFileName string) {
+// 	for _, files := range mt.VMToFileMap {
+// 		delete(files, sdfsFileName)
+// 	}
+// 	delete(mt.fileToVMMap, sdfsFileName)
+// }
 
-func (mt *MemTable) put(sdfsFileName string, replicas []string) {
-	if _, exists := mt.fileToVMMap[sdfsFileName]; !exists {
-		mt.fileToVMMap[sdfsFileName] = make(map[string]Empty)
-	}
-	for _, r := range replicas {
-		if _, exists := mt.VMToFileMap[r]; !exists {
-			mt.VMToFileMap[r] = make(map[string]Empty)
-		}
-		mt.VMToFileMap[r][sdfsFileName] = Empty{}
-		mt.fileToVMMap[sdfsFileName][r] = Empty{}
-	}
-}
+// func (mt *MemTable) put(sdfsFileName string, replicas []string) {
+// 	if _, exists := mt.fileToVMMap[sdfsFileName]; !exists {
+// 		mt.fileToVMMap[sdfsFileName] = make(map[string]Empty)
+// 	}
+// 	for _, r := range replicas {
+// 		if _, exists := mt.VMToFileMap[r]; !exists {
+// 			mt.VMToFileMap[r] = make(map[string]Empty)
+// 		}
+// 		mt.VMToFileMap[r][sdfsFileName] = Empty{}
+// 		mt.fileToVMMap[sdfsFileName][r] = Empty{}
+// 	}
+// }
 
 func hashFileName(fileName string) string {
 	hash := md5.Sum([]byte(fileName))
@@ -48,7 +48,7 @@ func hashFileName(fileName string) string {
 }
 
 func isCurrentNodeLeader() bool {
-	return HOSTNAME == LEADER_ADDRESS
+	return HOSTNAME == global.GetLeaderAddress()
 }
 
 func getDefaultReplicaVMAddresses(id string) []string {
@@ -113,7 +113,7 @@ func getIDFromFullHostName(hostName string) string { // might use it later if we
 
 func getAllSDFSFilesForVM(vmAddress string) []string {
 	var fileNames []string
-	files, exists := memTable.VMToFileMap[vmAddress]
+	files, exists := global.MemTable.VMToFileMap[vmAddress]
 	if !exists {
 		return fileNames
 	}
@@ -125,7 +125,7 @@ func getAllSDFSFilesForVM(vmAddress string) []string {
 
 func listSDFSFileVMs(sdfsFileName string) []string {
 	var VMList []string
-	val, exists := memTable.fileToVMMap[sdfsFileName]
+	val, exists := global.MemTable.FileToVMMap[sdfsFileName]
 	if !exists {
 		fmt.Println("Error: file not exist")
 	} else {

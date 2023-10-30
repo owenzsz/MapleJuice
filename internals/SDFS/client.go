@@ -16,7 +16,7 @@ import (
 
 // SDFS file operations
 func handleGetFile(sdfsFileName string, localFileName string) {
-	conn, err := grpc.Dial(LEADER_ADDRESS+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Printf("did not connect: %v\n", err)
 	}
@@ -38,6 +38,7 @@ func handleGetFile(sdfsFileName string, localFileName string) {
 	}
 	replicas := r.VMAddresses
 	for _, r := range replicas {
+		fmt.Printf("Trying to get file %s from replica: %s\n", sdfsFileName, r)
 		remotePath := getScpHostNameFromHostName(r) + ":" + filepath.Join(SDFS_PATH, sdfsFileName)
 		cmd := exec.Command("scp", remotePath, localFileName)
 		err := cmd.Start()
@@ -53,13 +54,25 @@ func handleGetFile(sdfsFileName string, localFileName string) {
 		}
 		break
 	}
+	ackResponse, err := c.GetACK(context.Background(), &pb.GetACKRequest{
+		FileName: sdfsFileName,
+	})
+	if err != nil {
+		fmt.Printf("Leader failed to process get ACK: %v\n", err)
+		return
+	}
+	if ackResponse == nil || !ackResponse.Success {
+		fmt.Printf("Leader process get ACK unsuccessfully: %v\n", err)
+		return
+	}
+	fmt.Printf("Successfully get file %s\n", sdfsFileName)
 }
 func handlePutFile(localFileName string, sdfsFileName string) {
 	if _, err := os.Stat(localFileName); os.IsNotExist(err) {
 		fmt.Printf("Local file not exist: %s\n", localFileName)
 		return
 	}
-	conn, err := grpc.Dial(LEADER_ADDRESS+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Printf("did not connect: %v\n", err)
 		return
@@ -87,21 +100,21 @@ func handlePutFile(localFileName string, sdfsFileName string) {
 		return
 	}
 
-	fmt.Printf("Put file %s to sdfs %s \n", localFileName, sdfsFileName)
+	fmt.Printf("Starting to put file: %s to SDFS file: %s \n", localFileName, sdfsFileName)
 	err = transferFile(localFileName, sdfsFileName, targetReplicas)
 	if err != nil {
 		fmt.Printf("Failed to transfer file: %v\n", err)
 	} else {
-		r, err := c.UpdateLeaderFileTable(context.Background(), &pb.UpdateLeaderFileTableRequest{
+		r, err := c.PutACK(context.Background(), &pb.PutACKRequest{
 			FileName:         sdfsFileName,
 			ReplicaAddresses: targetReplicas,
 		})
 		if err != nil {
-			fmt.Printf("Failed to update leader file table: %v\n", err)
+			fmt.Printf("Leader failed to process put ACK: %v\n", err)
 			return
 		}
 		if r == nil || !r.Success {
-			fmt.Printf("Failed to update leader file table: %v\n", err)
+			fmt.Printf("Leader process put ACK unsuccessfully: %v\n", err)
 			return
 		}
 	}
@@ -128,7 +141,7 @@ func transferFile(localFileName string, sdfsFileName string, targetReplicas []st
 }
 
 func handleDeleteFile(sdfsFileName string) {
-	conn, err := grpc.Dial(LEADER_ADDRESS+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Printf("did not connect: %v\n", err)
 	}
@@ -152,7 +165,7 @@ func handleDeleteFile(sdfsFileName string) {
 func handleListFileHolders(sdfsFileName string) {
 	ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer dialCancel()
-	conn, err := grpc.DialContext(ctx, LEADER_ADDRESS+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Printf("did not connect: %v\n", err)
 	}
@@ -184,7 +197,7 @@ func handleListFileHolders(sdfsFileName string) {
 func handleListLocalFiles() {
 	ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer dialCancel()
-	conn, err := grpc.DialContext(ctx, LEADER_ADDRESS+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Printf("did not connect: %v\n", err)
 	}

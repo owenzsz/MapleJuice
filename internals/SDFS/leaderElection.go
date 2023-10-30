@@ -41,8 +41,9 @@ func init() {
 	s = newMemberServer()
 }
 
-func GetLeaderID() int {
-	return int(s.leaderID)
+func UpdateLeaderID(newLeaderID int) int {
+	global.LeaderID = newLeaderID
+	return global.LeaderID
 }
 
 func newMemberServer() *MemberServer {
@@ -69,7 +70,8 @@ func (s *MemberServer) HeartBeat(ctx context.Context, ping *pb.Ping) (*pb.Pong, 
 	if s.currentTerm <= ping.Term {
 		// update current term and convert back to follower
 		s.currentTerm = ping.Term
-		s.leaderID = ping.LeaderID
+		// s.leaderID = ping.LeaderID
+		s.leaderID = int32(UpdateLeaderID(int(ping.LeaderID)))
 		s.state = Follower
 		refreshDeadline()
 
@@ -96,7 +98,8 @@ func (s *MemberServer) RequestVotes(ctx context.Context, request *pb.VoteRequest
 		s.currentTerm = request.Term
 		s.state = Follower
 		s.votedFor = request.CandidateID
-		s.leaderID = -1
+		// s.leaderID = -1
+		s.leaderID = int32(UpdateLeaderID(-1))
 		refreshDeadline()
 
 		return &pb.VoteResponse{
@@ -211,7 +214,7 @@ func followerTask() {
 		if (s.state == Follower || s.state == Candidate) {
 			if time.Now().After(s.electionDeadline) {
 				s.state = Candidate
-				s.leaderID = -1 // reset leader id 
+				s.leaderID = int32(UpdateLeaderID(-1)) // reset leader id 
 				originalTerm := s.currentTerm
 				s.serverStateLock.Unlock()
 				if lastTerm == -1 || originalTerm != lastTerm {
@@ -299,7 +302,7 @@ func startElection() {
 				if numVotes >= global.QUORUM { // Quorum reached
 					s.state = Leader
 					// fmt.Println("Promoted to leader")
-					s.leaderID = int32(localID)
+					s.leaderID = int32(UpdateLeaderID(localID))
 					convertedToLeader = true
 					return
 				}

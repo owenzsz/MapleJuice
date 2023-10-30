@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"cs425-mp/internals/global"
 )
 
 const (
@@ -207,9 +208,35 @@ func pBToNodeInfoList(incomingNodeList *pb.NodeInfoList) map[string]*Node {
 }
 
 // Construct new message of specified TYPE and local membership list
-func newMessageOfType(messageType pb.GroupMessage_MessageType) *pb.GroupMessage {
-	return &pb.GroupMessage{
-		Type:         messageType,
-		NodeInfoList: nodeInfoListToPB(),
+// *NOTE: The includeLeaderStates variadic parameter should only have length of either 0 or 1.
+// *NOTE: The includeLeaderStates parameter should be an optional variable. I used variadics here mainly for backward compatability
+func newMessageOfType(messageType pb.GroupMessage_MessageType, includeLeaderStates ...bool) *pb.GroupMessage {
+	if len(includeLeaderStates) > 1 {
+		panic("Length of includeLeaderStates parameter should never be greater than 1")
 	}
+
+	// Only include gossip message
+	if len(includeLeaderStates) == 0 {
+		return &pb.GroupMessage{
+			Type:         messageType,
+			NodeInfoList: nodeInfoListToPB(),
+		}
+	}
+
+	// Gossip message with leader states piggybacked
+	if (len(includeLeaderStates) == 1) && includeLeaderStates[0] {
+		localHostname, _ := getLocalNodeAddress()
+		message := &pb.GroupMessage{
+			Type:         messageType,
+			NodeInfoList: nodeInfoListToPB(),
+			LeaderState: global.LeaderStatesToPB(localHostname),
+		}
+		return message	
+	}
+
+	// Unreachable!
+	return nil
+
 }
+
+
