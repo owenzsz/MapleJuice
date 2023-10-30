@@ -17,25 +17,25 @@ import (
 )
 
 const (
-	LEADER_ADDRESS = "fa23-cs425-1801.cs.illinois.edu" // Default leader's receiving address
+	// LEADER_ADDRESS = "fa23-cs425-1801.cs.illinois.edu" // Default leader's receiving address
 	NUM_WRITE      = 4
 	NUM_READ       = 1
 )
 
 var (
 	SDFS_PATH string
-	memTable  = &MemTable{
-		fileToVMMap: make(map[string]map[string]Empty), // go does not have sets, so we used a map with empty value to repersent set
-		VMToFileMap: make(map[string]map[string]Empty),
-	}
+	// memTable  = &MemTable{
+	// 	fileToVMMap: make(map[string]map[string]Empty), // go does not have sets, so we used a map with empty value to repersent set
+	// 	VMToFileMap: make(map[string]map[string]Empty),
+	// }
 	HOSTNAME   string
 	FD_CHANNEL chan string // channel to communicate with FD, same as the fd.SDFS_CHANNEL
 )
 
-type MemTable struct {
-	fileToVMMap map[string]map[string]Empty
-	VMToFileMap map[string]map[string]Empty
-}
+// type MemTable struct {
+// 	fileToVMMap map[string]map[string]Empty
+// 	VMToFileMap map[string]map[string]Empty
+// }
 
 func init() {
 	usr, err := user.Current()
@@ -76,7 +76,7 @@ func handleNodeFailure(failedNodeAddr string) {
 	}
 	fmt.Println("Handling node failure")
 	//find out all the files that the failed node has
-	filesToReplicate := memTable.VMToFileMap[failedNodeAddr]
+	filesToReplicate := global.MemTable.VMToFileMap[failedNodeAddr]
 	//for each file, get a list of alived machines that contain the file
 	for fileName := range filesToReplicate {
 		replicas := listSDFSFileVMs(fileName)
@@ -94,7 +94,7 @@ func handleNodeFailure(failedNodeAddr string) {
 		}
 	}
 	//remove the VM from the mem table
-	delete(memTable.VMToFileMap, failedNodeAddr)
+	delete(global.MemTable.VMToFileMap, failedNodeAddr)
 }
 
 func sendReplicateFileRequest(senderMachine string, receiverMachine string, fileName string) *pb.ReplicationResponse {
@@ -124,6 +124,8 @@ type SDFSServer struct {
 
 // Get file
 func (s *SDFSServer) GetFile(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse, error) {
+	fileName := in.FileName
+	requestLock(in.RequesterAddress, fileName, global.READ)
 	vmList := listSDFSFileVMs(in.FileName)
 	resp := &pb.GetResponse{
 		Success:     true,
@@ -132,11 +134,21 @@ func (s *SDFSServer) GetFile(ctx context.Context, in *pb.GetRequest) (*pb.GetRes
 	return resp, nil
 }
 
+// Get ACK (sent to leader)
+func (s *SDFSServer) GetACK(ctx context.Context, in *pb.GetACKRequest) (*pb.GetACKResponse, error) {
+	releaseLock(in.FileName, global.READ)
+	resp := &pb.GetACKResponse{
+		Success: true,
+	}
+	return resp, nil
+}
+
 // Put file
 func (s *SDFSServer) PutFile(ctx context.Context, in *pb.PutRequest) (*pb.PutResponse, error) {
 	fileName := in.FileName
+	requestLock(in.RequesterAddress, fileName, global.WRITE)
 	var targetReplicas []string
-	val, exists := memTable.fileToVMMap[fileName]
+	val, exists := global.MemTable.FileToVMMap[fileName]
 	if !exists {
 		targetReplicas = getDefaultReplicaVMAddresses(hashFileName(fileName))
 	} else {
@@ -151,13 +163,14 @@ func (s *SDFSServer) PutFile(ctx context.Context, in *pb.PutRequest) (*pb.PutRes
 	return resp, nil
 }
 
-// update file table (sent to leader)
-func (s *SDFSServer) UpdateLeaderFileTable(ctx context.Context, in *pb.UpdateLeaderFileTableRequest) (*pb.UpdateLeaderFileTableResponse, error) {
+// put ACK (sent to leader)
+func (s *SDFSServer) PutACK(ctx context.Context, in *pb.PutACKRequest) (*pb.PutACKResponse, error) {
 	fileName := in.FileName
 	vmAddress := in.ReplicaAddresses
 	//update file table
-	memTable.put(fileName, vmAddress)
-	resp := &pb.UpdateLeaderFileTableResponse{
+	global.MemTable.Put(fileName, vmAddress)
+	releaseLock(fileName, global.WRITE)
+	resp := &pb.PutACKResponse{
 		Success: true,
 	}
 	return resp, nil
@@ -178,51 +191,51 @@ func (s *SDFSServer) DeleteFileLeader(ctx context.Context, in *pb.DeleteRequestL
 	resp := &pb.DeleteResponseLeader{
 		Success: true,
 	}
-	memTable.delete(fileName)
+	global.MemTable.Delete(fileName)
 	return resp, nil
 }
 
-func sendDeleteFileMessageToTargetFollowers(targetFollowers []string, fileName string) error {
-	var err error
-	errCh := make(chan error, len(targetFollowers))
-	for _, f := range targetFollowers {
-		go func(f string) {
-			err := sendDeleteFileRequestsToFollower(f, fileName)
-			errCh <- err
-		}(f)
-	}
+// func sendDeleteFileMessageToTargetFollowers(targetFollowers []string, fileName string) error {
+// 	var err error
+// 	errCh := make(chan error, len(targetFollowers))
+// 	for _, f := range targetFollowers {
+// 		go func(f string) {
+// 			err := sendDeleteFileRequestsToFollower(f, fileName)
+// 			errCh <- err
+// 		}(f)
+// 	}
 
-	for i := 0; i < len(targetFollowers); i++ {
-		err = <-errCh
-		if err != nil {
-			fmt.Printf("Error deleting file on follower: %v\n", err)
-		}
-	}
-	close(errCh)
-	return err
-}
+// 	for i := 0; i < len(targetFollowers); i++ {
+// 		err = <-errCh
+// 		if err != nil {
+// 			fmt.Printf("Error deleting file on follower: %v\n", err)
+// 		}
+// 	}
+// 	close(errCh)
+// 	return err
+// }
 
-func sendDeleteFileRequestsToFollower(targetFollower string, fileName string) error {
-	conn, err := grpc.Dial(targetFollower+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		fmt.Printf("did not connect: %v\n", err)
-	}
-	defer conn.Close()
+// func sendDeleteFileRequestsToFollower(targetFollower string, fileName string) error {
+// 	conn, err := grpc.Dial(targetFollower+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+// 	if err != nil {
+// 		fmt.Printf("did not connect: %v\n", err)
+// 	}
+// 	defer conn.Close()
 
-	c := pb.NewSDFSClient(conn)
+// 	c := pb.NewSDFSClient(conn)
 
-	r, err := c.DeleteFileFollower(context.Background(), &pb.DeleteRequestFollower{
-		FileName: fileName,
-	})
+// 	r, err := c.DeleteFileFollower(context.Background(), &pb.DeleteRequestFollower{
+// 		FileName: fileName,
+// 	})
 
-	if err != nil {
-		fmt.Printf("Failed to call delete on followers: %v\n", err)
-	}
-	if !r.Success {
-		return fmt.Errorf("failed to delete file %s on follower %s", fileName, targetFollower)
-	}
-	return nil
-}
+// 	if err != nil {
+// 		fmt.Printf("Failed to call delete on followers: %v\n", err)
+// 	}
+// 	if !r.Success {
+// 		return fmt.Errorf("failed to delete file %s on follower %s", fileName, targetFollower)
+// 	}
+// 	return nil
+// }
 
 // Delete file (follower)
 func (s *SDFSServer) DeleteFileFollower(ctx context.Context, in *pb.DeleteRequestFollower) (*pb.DeleteResponseFollower, error) {

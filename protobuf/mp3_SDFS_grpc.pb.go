@@ -19,14 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	SDFS_GetFile_FullMethodName               = "/cs425_mp3.SDFS/GetFile"
-	SDFS_PutFile_FullMethodName               = "/cs425_mp3.SDFS/PutFile"
-	SDFS_UpdateLeaderFileTable_FullMethodName = "/cs425_mp3.SDFS/UpdateLeaderFileTable"
-	SDFS_DeleteFileLeader_FullMethodName      = "/cs425_mp3.SDFS/DeleteFileLeader"
-	SDFS_DeleteFileFollower_FullMethodName    = "/cs425_mp3.SDFS/DeleteFileFollower"
-	SDFS_ListFileHolder_FullMethodName        = "/cs425_mp3.SDFS/ListFileHolder"
-	SDFS_ListLocalFiles_FullMethodName        = "/cs425_mp3.SDFS/ListLocalFiles"
-	SDFS_ReplicateFile_FullMethodName         = "/cs425_mp3.SDFS/ReplicateFile"
+	SDFS_GetFile_FullMethodName            = "/cs425_mp3.SDFS/GetFile"
+	SDFS_GetACK_FullMethodName             = "/cs425_mp3.SDFS/GetACK"
+	SDFS_PutFile_FullMethodName            = "/cs425_mp3.SDFS/PutFile"
+	SDFS_PutACK_FullMethodName             = "/cs425_mp3.SDFS/PutACK"
+	SDFS_DeleteFileLeader_FullMethodName   = "/cs425_mp3.SDFS/DeleteFileLeader"
+	SDFS_DeleteFileFollower_FullMethodName = "/cs425_mp3.SDFS/DeleteFileFollower"
+	SDFS_ListFileHolder_FullMethodName     = "/cs425_mp3.SDFS/ListFileHolder"
+	SDFS_ListLocalFiles_FullMethodName     = "/cs425_mp3.SDFS/ListLocalFiles"
+	SDFS_ReplicateFile_FullMethodName      = "/cs425_mp3.SDFS/ReplicateFile"
 )
 
 // SDFSClient is the client API for SDFS service.
@@ -34,8 +35,9 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SDFSClient interface {
 	GetFile(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	GetACK(ctx context.Context, in *GetACKRequest, opts ...grpc.CallOption) (*GetACKResponse, error)
 	PutFile(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
-	UpdateLeaderFileTable(ctx context.Context, in *UpdateLeaderFileTableRequest, opts ...grpc.CallOption) (*UpdateLeaderFileTableResponse, error)
+	PutACK(ctx context.Context, in *PutACKRequest, opts ...grpc.CallOption) (*PutACKResponse, error)
 	DeleteFileLeader(ctx context.Context, in *DeleteRequestLeader, opts ...grpc.CallOption) (*DeleteResponseLeader, error)
 	DeleteFileFollower(ctx context.Context, in *DeleteRequestFollower, opts ...grpc.CallOption) (*DeleteResponseFollower, error)
 	ListFileHolder(ctx context.Context, in *ListFileHolderRequest, opts ...grpc.CallOption) (*ListFileHolderResponse, error)
@@ -60,6 +62,15 @@ func (c *sDFSClient) GetFile(ctx context.Context, in *GetRequest, opts ...grpc.C
 	return out, nil
 }
 
+func (c *sDFSClient) GetACK(ctx context.Context, in *GetACKRequest, opts ...grpc.CallOption) (*GetACKResponse, error) {
+	out := new(GetACKResponse)
+	err := c.cc.Invoke(ctx, SDFS_GetACK_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *sDFSClient) PutFile(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error) {
 	out := new(PutResponse)
 	err := c.cc.Invoke(ctx, SDFS_PutFile_FullMethodName, in, out, opts...)
@@ -69,9 +80,9 @@ func (c *sDFSClient) PutFile(ctx context.Context, in *PutRequest, opts ...grpc.C
 	return out, nil
 }
 
-func (c *sDFSClient) UpdateLeaderFileTable(ctx context.Context, in *UpdateLeaderFileTableRequest, opts ...grpc.CallOption) (*UpdateLeaderFileTableResponse, error) {
-	out := new(UpdateLeaderFileTableResponse)
-	err := c.cc.Invoke(ctx, SDFS_UpdateLeaderFileTable_FullMethodName, in, out, opts...)
+func (c *sDFSClient) PutACK(ctx context.Context, in *PutACKRequest, opts ...grpc.CallOption) (*PutACKResponse, error) {
+	out := new(PutACKResponse)
+	err := c.cc.Invoke(ctx, SDFS_PutACK_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +139,9 @@ func (c *sDFSClient) ReplicateFile(ctx context.Context, in *ReplicationRequest, 
 // for forward compatibility
 type SDFSServer interface {
 	GetFile(context.Context, *GetRequest) (*GetResponse, error)
+	GetACK(context.Context, *GetACKRequest) (*GetACKResponse, error)
 	PutFile(context.Context, *PutRequest) (*PutResponse, error)
-	UpdateLeaderFileTable(context.Context, *UpdateLeaderFileTableRequest) (*UpdateLeaderFileTableResponse, error)
+	PutACK(context.Context, *PutACKRequest) (*PutACKResponse, error)
 	DeleteFileLeader(context.Context, *DeleteRequestLeader) (*DeleteResponseLeader, error)
 	DeleteFileFollower(context.Context, *DeleteRequestFollower) (*DeleteResponseFollower, error)
 	ListFileHolder(context.Context, *ListFileHolderRequest) (*ListFileHolderResponse, error)
@@ -145,11 +157,14 @@ type UnimplementedSDFSServer struct {
 func (UnimplementedSDFSServer) GetFile(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFile not implemented")
 }
+func (UnimplementedSDFSServer) GetACK(context.Context, *GetACKRequest) (*GetACKResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetACK not implemented")
+}
 func (UnimplementedSDFSServer) PutFile(context.Context, *PutRequest) (*PutResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutFile not implemented")
 }
-func (UnimplementedSDFSServer) UpdateLeaderFileTable(context.Context, *UpdateLeaderFileTableRequest) (*UpdateLeaderFileTableResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateLeaderFileTable not implemented")
+func (UnimplementedSDFSServer) PutACK(context.Context, *PutACKRequest) (*PutACKResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PutACK not implemented")
 }
 func (UnimplementedSDFSServer) DeleteFileLeader(context.Context, *DeleteRequestLeader) (*DeleteResponseLeader, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteFileLeader not implemented")
@@ -197,6 +212,24 @@ func _SDFS_GetFile_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SDFS_GetACK_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetACKRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SDFSServer).GetACK(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SDFS_GetACK_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SDFSServer).GetACK(ctx, req.(*GetACKRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SDFS_PutFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PutRequest)
 	if err := dec(in); err != nil {
@@ -215,20 +248,20 @@ func _SDFS_PutFile_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SDFS_UpdateLeaderFileTable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateLeaderFileTableRequest)
+func _SDFS_PutACK_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PutACKRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SDFSServer).UpdateLeaderFileTable(ctx, in)
+		return srv.(SDFSServer).PutACK(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SDFS_UpdateLeaderFileTable_FullMethodName,
+		FullMethod: SDFS_PutACK_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SDFSServer).UpdateLeaderFileTable(ctx, req.(*UpdateLeaderFileTableRequest))
+		return srv.(SDFSServer).PutACK(ctx, req.(*PutACKRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -335,12 +368,16 @@ var SDFS_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SDFS_GetFile_Handler,
 		},
 		{
+			MethodName: "GetACK",
+			Handler:    _SDFS_GetACK_Handler,
+		},
+		{
 			MethodName: "PutFile",
 			Handler:    _SDFS_PutFile_Handler,
 		},
 		{
-			MethodName: "UpdateLeaderFileTable",
-			Handler:    _SDFS_UpdateLeaderFileTable_Handler,
+			MethodName: "PutACK",
+			Handler:    _SDFS_PutACK_Handler,
 		},
 		{
 			MethodName: "DeleteFileLeader",

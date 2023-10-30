@@ -104,6 +104,10 @@ func processGossipMessage(message *pb.GroupMessage) {
 	NodeListLock.Lock()
 	updateMembershipList(incomingNodeList)
 	NodeListLock.Unlock()
+	// Also update local copy of the leader state if message contains that
+	if message.LeaderState != nil {
+		global.UpdateLeaderStateIfNecessary(message.LeaderState)
+	}
 }
 
 // Construct a protobuf message struct using partial membership list
