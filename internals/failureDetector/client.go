@@ -46,7 +46,6 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 			} else if sinceLastTimestamp > T_FAIL {
 				customLog(true, "Marking %v as failed, over time for %v time", key, sinceLastTimestamp.Seconds()-T_FAIL.Seconds())
 				node.Status = Failed
-				SDFS_CHANNEL <- fmt.Sprintf("Failed:%v", node.NodeAddr)
 				node.TimeStamp = time.Now()
 			}
 		case Failed, Left:
@@ -62,7 +61,6 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 					customLog(true, "Marking %v as from suspected to failed, over time for %v time", key, sinceLastTimestamp.Seconds()-T_FAIL.Seconds())
 				}
 				node.Status = Failed
-				SDFS_CHANNEL <- fmt.Sprintf("Failed:%v", node.NodeAddr)
 				node.TimeStamp = time.Now()
 			}
 		}
@@ -118,7 +116,6 @@ func sendGossipToNodes(selectedNodes []*Node, gossip []byte) {
 	}
 	wg.Wait()
 }
-
 
 // Join compute cluster without using an Introducer node. Need all machine's address hardcoded in global.go
 func JoinGroupAndInitByIntroducer() error {
@@ -217,7 +214,7 @@ func JoinGroupAndInit() error {
 	NodeListLock.Lock()
 	NodeInfoList = initialNodeList
 	NodeListLock.Unlock()
-	
+
 	// Construct JOIN Message
 	groupMessage := newMessageOfType(pb.GroupMessage_JOIN)
 	msg, err := proto.Marshal(groupMessage)
@@ -227,7 +224,7 @@ func JoinGroupAndInit() error {
 
 	// We send JOIN message to all peers except local machine and hope at least one machine would respond with its membership list.
 	// If failed after trying every peer for 3 times, declare join failed.
-	for i:=0; i<3; i++ {
+	for i := 0; i < 3; i++ {
 		for _, peerAddr := range global.SERVER_ADDRS {
 			// skip local machine
 			if peerAddr == selfAddr {
@@ -238,7 +235,7 @@ func JoinGroupAndInit() error {
 				continue
 			}
 			defer conn.Close()
-			
+
 			err = conn.SetDeadline(time.Now().Add(2 * time.Second))
 			if err != nil {
 				continue

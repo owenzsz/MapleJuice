@@ -2,15 +2,16 @@ package SDFS
 
 import (
 	"context"
+	fd "cs425-mp/internals/failureDetector"
 	"cs425-mp/internals/global"
 	pb "cs425-mp/protobuf"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -18,8 +19,8 @@ import (
 
 const (
 	// LEADER_ADDRESS = "fa23-cs425-1801.cs.illinois.edu" // Default leader's receiving address
-	NUM_WRITE      = 4
-	NUM_READ       = 1
+	NUM_WRITE = 4
+	NUM_READ  = 1
 )
 
 var (
@@ -28,8 +29,7 @@ var (
 	// 	fileToVMMap: make(map[string]map[string]Empty), // go does not have sets, so we used a map with empty value to repersent set
 	// 	VMToFileMap: make(map[string]map[string]Empty),
 	// }
-	HOSTNAME   string
-	FD_CHANNEL chan string // channel to communicate with FD, same as the fd.SDFS_CHANNEL
+	HOSTNAME string
 )
 
 // type MemTable struct {
@@ -52,52 +52,73 @@ func init() {
 	HOSTNAME = hn
 }
 
-func SetFDChannel(ch chan string) {
-	FD_CHANNEL = ch
+func PeriodicReplication() {
+	for {
+		if isCurrentNodeLeader() {
+			cleanMemtableAndReplicate()
+		}
+		time.Sleep(5 * time.Second)
+	}
 }
 
-func ObserveFDChannel() {
-	for {
-		msg := <-FD_CHANNEL
-		fmt.Printf("Received message from FD: %s\n", msg)
-		components := strings.Split(msg, ":")
-		messageType := components[0]
-		nodeAddr := components[1]
-		if messageType == "Failed" {
-			go handleNodeFailure(nodeAddr)
+func cleanMemtableAndReplicate() {
+	global.MemtableLock.Lock()
+	VMsToCleanUp := make([]string, 0)
+	for VM := range global.MemTable.VMToFileMap {
+		if !fd.IsNodeAlive(VM) {
+			VMsToCleanUp = append(VMsToCleanUp, VM)
 		}
 	}
-}
-
-// handle failure of a node
-func handleNodeFailure(failedNodeAddr string) {
-	if !isCurrentNodeLeader() {
-		return
+	global.MemtableLock.Unlock()
+	for _, VM := range VMsToCleanUp {
+		global.MemTable.DeleteVM(VM)
 	}
-	fmt.Println("Handling node failure")
-	//find out all the files that the failed node has
-	filesToReplicate := global.MemTable.VMToFileMap[failedNodeAddr]
-	//for each file, get a list of alived machines that contain the file
-	for fileName := range filesToReplicate {
+
+	replicationStartTime := time.Now()
+	needToReplicate := false
+	replicationTasks := make(map[string][]string) // map from fileName to list of receiverAddresses
+
+	global.MemtableLock.Lock()
+	for fileName := range global.MemTable.FileToVMMap {
 		replicas := listSDFSFileVMs(fileName)
+		if len(replicas) < NUM_WRITE {
+			needToReplicate = true
+			allAliveNodes := getAlivePeersAddrs()
+			disjointAddresses := findDisjointElements(allAliveNodes, replicas)
+			receiverAddresses, err := randomSelect(disjointAddresses, NUM_WRITE-len(replicas))
+			if err != nil {
+				fmt.Printf("Error selecting random addresses: %v\n", err)
+			} else {
+				replicationTasks[fileName] = receiverAddresses
+			}
+		}
+	}
+	global.MemtableLock.Unlock() // Unlock as quickly as possible
+
+	for fileName, receiverAddresses := range replicationTasks {
+		replicas := listSDFSFileVMs(fileName) // list again to get the most updated replicas
+		if len(replicas) == 0 {
+			fmt.Printf("No replicas found for file %s. Skipping replication.\n", fileName)
+			continue
+		}
 		senderAddress := replicas[0]
-		allAliveNodes := getAlivePeersAddrs()
-		disjointAddresses := findDisjointElements(allAliveNodes, replicas)
-		// randomly select an alive machine to replicate the file
-		receiverAddress := disjointAddresses[rand.Intn(len(disjointAddresses))]
-		r := sendReplicateFileRequest(senderAddress, receiverAddress, fileName)
+		r := sendReplicateFileRequest(senderAddress, receiverAddresses, fileName)
 		if r == nil || !r.Success {
 			//TODO: add logic for failed replication
-			fmt.Printf("Failed to replicate file %s from %s to %s\n", fileName, senderAddress, receiverAddress)
+			fmt.Printf("Failed to replicate file %s from %s to %+q\n", fileName, senderAddress, receiverAddresses)
 		} else {
-			fmt.Printf("Successfully replicated file %s from %s to %s\n", fileName, senderAddress, receiverAddress)
+			fmt.Printf("Successfully replicated file %s from %s to %+q\n", fileName, senderAddress, receiverAddresses)
 		}
 	}
-	//remove the VM from the mem table
-	delete(global.MemTable.VMToFileMap, failedNodeAddr)
+
+	if needToReplicate {
+		replicationOperationTime := time.Since(replicationStartTime).Milliseconds()
+		fmt.Printf("Replication time: %d ms\n", replicationOperationTime)
+	}
+
 }
 
-func sendReplicateFileRequest(senderMachine string, receiverMachine string, fileName string) *pb.ReplicationResponse {
+func sendReplicateFileRequest(senderMachine string, receiverMachines []string, fileName string) *pb.ReplicationResponse {
 	conn, err := grpc.Dial(senderMachine+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Printf("did not connect: %v\n", err)
@@ -107,9 +128,9 @@ func sendReplicateFileRequest(senderMachine string, receiverMachine string, file
 	c := pb.NewSDFSClient(conn)
 
 	r, err := c.ReplicateFile(context.Background(), &pb.ReplicationRequest{
-		FileName:        fileName,
-		SenderMachine:   senderMachine,
-		ReceiverMachine: receiverMachine,
+		FileName:         fileName,
+		SenderMachine:    senderMachine,
+		ReceiverMachines: receiverMachines,
 	})
 	if err != nil {
 		fmt.Printf("Failed to call replicate: %v\n", err)
@@ -125,11 +146,15 @@ type SDFSServer struct {
 // Get file
 func (s *SDFSServer) GetFile(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse, error) {
 	fileName := in.FileName
-	requestLock(in.RequesterAddress, fileName, global.READ)
-	vmList := listSDFSFileVMs(in.FileName)
+	var vmList []string
+	canProceed := requestLock(in.RequesterAddress, fileName, global.READ)
+	if canProceed {
+		vmList = listSDFSFileVMs(in.FileName)
+	}
 	resp := &pb.GetResponse{
 		Success:     true,
 		VMAddresses: vmList,
+		ShouldWait:  !canProceed,
 	}
 	return resp, nil
 }
@@ -146,19 +171,23 @@ func (s *SDFSServer) GetACK(ctx context.Context, in *pb.GetACKRequest) (*pb.GetA
 // Put file
 func (s *SDFSServer) PutFile(ctx context.Context, in *pb.PutRequest) (*pb.PutResponse, error) {
 	fileName := in.FileName
-	requestLock(in.RequesterAddress, fileName, global.WRITE)
+	canProceed := requestLock(in.RequesterAddress, fileName, global.WRITE)
 	var targetReplicas []string
-	val, exists := global.MemTable.FileToVMMap[fileName]
-	if !exists {
-		targetReplicas = getDefaultReplicaVMAddresses(hashFileName(fileName))
-	} else {
-		for k := range val {
-			targetReplicas = append(targetReplicas, k)
+	if canProceed {
+		val, exists := global.MemTable.FileToVMMap[fileName]
+		if !exists {
+			targetReplicas = getDefaultReplicaVMAddresses(hashFileName(fileName))
+		} else {
+			for k := range val {
+				targetReplicas = append(targetReplicas, k)
+			}
 		}
 	}
+
 	resp := &pb.PutResponse{
 		Success:     true,
 		VMAddresses: targetReplicas,
+		ShouldWait:  !canProceed,
 	}
 	return resp, nil
 }
@@ -169,7 +198,9 @@ func (s *SDFSServer) PutACK(ctx context.Context, in *pb.PutACKRequest) (*pb.PutA
 	vmAddress := in.ReplicaAddresses
 	//update file table
 	global.MemTable.Put(fileName, vmAddress)
-	releaseLock(fileName, global.WRITE)
+	if !in.IsReplicate {
+		releaseLock(fileName, global.WRITE)
+	}
 	resp := &pb.PutACKResponse{
 		Success: true,
 	}
@@ -191,7 +222,7 @@ func (s *SDFSServer) DeleteFileLeader(ctx context.Context, in *pb.DeleteRequestL
 	resp := &pb.DeleteResponseLeader{
 		Success: true,
 	}
-	global.MemTable.Delete(fileName)
+	global.MemTable.DeleteFile(fileName)
 	return resp, nil
 }
 
@@ -299,11 +330,12 @@ func (s *SDFSServer) ReplicateFile(ctx context.Context, in *pb.ReplicationReques
 	}
 	fmt.Println("Replicating file")
 	localSDFSFilePath := filepath.Join(SDFS_PATH, in.FileName)
-	err := transferFile(localSDFSFilePath, in.FileName, []string{in.ReceiverMachine})
+	err := transferFilesConcurrent(localSDFSFilePath, in.FileName, in.ReceiverMachines)
 	if err != nil {
 		fmt.Printf("Failed to transfer file: %v\n", err)
 		resp.Success = false
 	} else {
+		sendPutACKToLeader(in.FileName, in.ReceiverMachines, true)
 		resp.Success = true
 	}
 	return resp, err

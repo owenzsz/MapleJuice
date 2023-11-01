@@ -24,6 +24,7 @@ message GetRequest {
 message GetResponse {
   bool success = 1;
   repeated string VMAddresses = 2;
+  bool shouldWait = 3;
 }
 
 //get ack
@@ -45,11 +46,13 @@ message PutRequest {
 message PutResponse {
   bool success = 1;
   repeated string VMAddresses = 2;
+  bool shouldWait = 3;
 }
 
 //put ack
 message PutACKRequest {
   string fileName = 1;
+  bool isReplicate = 2;
   repeated string replicaAddresses = 3;
 }
 
@@ -100,7 +103,7 @@ message ListLocalFilesResponse {
 message ReplicationRequest {
   string fileName = 1;
   string senderMachine = 2;
-  string receiverMachine = 3;
+  repeated string receiverMachines = 3;
 }
 
 message ReplicationResponse {

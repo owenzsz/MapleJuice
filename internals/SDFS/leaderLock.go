@@ -1,13 +1,11 @@
 package SDFS
 
 import (
-	"fmt"
 	"cs425-mp/internals/global"
+	"fmt"
 )
 
-
-
-func requestLock(requestorAddress string, fileName string, requestType global.RequestType) {
+func requestLock(requestorAddress string, fileName string, requestType global.RequestType) bool {
 	global.GlobalFileLock.Lock()
 	lock, exists := global.FileLocks[fileName]
 	if !exists {
@@ -18,43 +16,33 @@ func requestLock(requestorAddress string, fileName string, requestType global.Re
 
 	lock.FileLocksMutex.Lock()
 	defer lock.FileLocksMutex.Unlock()
-	if requestType == global.READ {
-		lock.ReadQueue = append(lock.ReadQueue, requestorAddress)
-	} else {
-		lock.WriteQueue = append(lock.WriteQueue, requestorAddress)
-	}
-	canProceed := false
-	hasPrintedLog := false
-	for !canProceed {
-		switch requestType {
-		case global.READ:
-			canProceed = lock.WriteCount == 0 && lock.ReadCount < 2 && (len(lock.WriteQueue) == 0 || lock.ConsecutiveReads < 4) && lock.ReadQueue[0] == requestorAddress
-		case global.WRITE:
-			canProceed = lock.WriteCount == 0 && lock.ReadCount == 0 && (len(lock.ReadQueue) == 0 || lock.ConsecutiveWrites < 4) && lock.WriteQueue[0] == requestorAddress
+	var canProceed bool
+	switch requestType {
+	case global.READ:
+		if !global.Contains(lock.ReadQueue, requestorAddress) {
+			lock.ReadQueue = append(lock.ReadQueue, requestorAddress)
 		}
-		if !canProceed {
-			if !hasPrintedLog {
-				fmt.Printf("Waiting for lock for file %s\n", fileName)
-				hasPrintedLog = true
-			}
-			lock.FileLocksMutex.Unlock()
-			// Optionally, sleep for a short time before trying again
-			// time.Sleep(time.Millisecond * 50)
-			lock.FileLocksMutex.Lock()
+		canProceed = lock.WriteCount == 0 && lock.ReadCount < 2 && (len(lock.WriteQueue) == 0 || lock.ConsecutiveReads < 4) && lock.ReadQueue[0] == requestorAddress
+	case global.WRITE:
+		if !global.Contains(lock.WriteQueue, requestorAddress) {
+			lock.WriteQueue = append(lock.WriteQueue, requestorAddress)
+		}
+		canProceed = lock.WriteCount == 0 && lock.ReadCount == 0 && (len(lock.ReadQueue) == 0 || lock.ConsecutiveWrites < 4) && lock.WriteQueue[0] == requestorAddress
+	}
+	if canProceed {
+		if requestType == global.READ {
+			fmt.Printf("Granted read lock for file %s\n", fileName)
+			lock.ReadCount++
+			lock.ConsecutiveReads++
+			lock.ConsecutiveWrites = 0
+		} else {
+			fmt.Printf("Granted write lock for file %s\n", fileName)
+			lock.WriteCount++
+			lock.ConsecutiveWrites++
+			lock.ConsecutiveReads = 0
 		}
 	}
-	// Grant lock
-	if requestType == global.READ {
-		fmt.Printf("Granted read lock for file %s\n", fileName)
-		lock.ReadCount++
-		lock.ConsecutiveReads++
-		lock.ConsecutiveWrites = 0
-	} else {
-		fmt.Printf("Granted write lock for file %s\n", fileName)
-		lock.WriteCount++
-		lock.ConsecutiveWrites++
-		lock.ConsecutiveReads = 0
-	}
+	return canProceed
 }
 
 func releaseLock(fileName string, requestType global.RequestType) {

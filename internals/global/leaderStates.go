@@ -34,6 +34,7 @@ type FileLock struct {
 var (
 	FileLocks      = make(map[string]*FileLock)
 	GlobalFileLock = sync.Mutex{}
+	MemtableLock   = sync.Mutex{}
 )
 
 var (
@@ -41,18 +42,30 @@ var (
 		FileToVMMap: make(map[string]map[string]Empty), // go does not have sets, so we used a map with empty value to repersent set
 		VMToFileMap: make(map[string]map[string]Empty),
 	}
-	Version  = 0  // Monotonically incremented when leader send Gossip in Failure Detector Module
+	Version = 0 // Monotonically incremented when leader send Gossip in Failure Detector Module
 )
 
 // update mem tables
-func (mt *_MemTable) Delete(sdfsFileName string) {
+func (mt *_MemTable) DeleteFile(sdfsFileName string) {
+	MemtableLock.Lock()
 	for _, files := range mt.VMToFileMap {
 		delete(files, sdfsFileName)
 	}
 	delete(mt.FileToVMMap, sdfsFileName)
+	MemtableLock.Unlock()
+}
+
+func (mt *_MemTable) DeleteVM(VMAddr string) {
+	MemtableLock.Lock()
+	for _, VMs := range mt.FileToVMMap {
+		delete(VMs, VMAddr)
+	}
+	delete(mt.VMToFileMap, VMAddr)
+	MemtableLock.Unlock()
 }
 
 func (mt *_MemTable) Put(sdfsFileName string, replicas []string) {
+	MemtableLock.Lock()
 	if _, exists := mt.FileToVMMap[sdfsFileName]; !exists {
 		mt.FileToVMMap[sdfsFileName] = make(map[string]Empty)
 	}
@@ -63,21 +76,22 @@ func (mt *_MemTable) Put(sdfsFileName string, replicas []string) {
 		mt.VMToFileMap[r][sdfsFileName] = Empty{}
 		mt.FileToVMMap[sdfsFileName][r] = Empty{}
 	}
+	MemtableLock.Unlock()
 }
 
-// Serialize leader state to protobuf format. 
+// Serialize leader state to protobuf format.
 // myAddr is the hostname of the calling node of this function
 func LeaderStatesToPB(myAddr string) *pb.LeaderState {
 	res := &pb.LeaderState{}
 	// Include memtable
-	// !TODO: Memtable not lock???
+	MemtableLock.Lock()
 	res.FileToVMMap = make(map[string]*pb.LeaderState_AddrList)
 	for key, value := range MemTable.FileToVMMap {
 		res.FileToVMMap[key] = &pb.LeaderState_AddrList{}
 		res.FileToVMMap[key].VMAddr = make([]string, 0)
 		// vm_list := vm_addr_list.VMAddr
 		for vm_addr := range value {
-			res.FileToVMMap[key].VMAddr= append(res.FileToVMMap[key].VMAddr, vm_addr)
+			res.FileToVMMap[key].VMAddr = append(res.FileToVMMap[key].VMAddr, vm_addr)
 		}
 	}
 
@@ -90,6 +104,7 @@ func LeaderStatesToPB(myAddr string) *pb.LeaderState {
 			res.VMToFileMap[key].FileNames = append(res.VMToFileMap[key].FileNames, file_name)
 		}
 	}
+	MemtableLock.Unlock()
 
 	// Include file lock
 	GlobalFileLock.Lock()
@@ -107,10 +122,9 @@ func LeaderStatesToPB(myAddr string) *pb.LeaderState {
 	}
 	GlobalFileLock.Unlock()
 
-
 	// If Leader node, increase Memtable Version number by one
 	if myAddr == GetLeaderAddress() {
-		Version ++;
+		Version++
 	}
 	res.Version = int64(Version)
 
@@ -132,12 +146,12 @@ func LeaderStatesToPB(myAddr string) *pb.LeaderState {
 }
 
 func UpdateLeaderStateIfNecessary(leaderStates *pb.LeaderState) {
-	if (leaderStates.Version <= int64(Version) ) {
+	if leaderStates.Version <= int64(Version) {
 		return
 	}
 	Version = int(leaderStates.Version)
 
-	// !TODO: Memtable not lock???
+	MemtableLock.Lock()
 	new_file_to_VM_map := make(map[string]map[string]Empty)
 	for k, v := range leaderStates.FileToVMMap {
 		addr_list := v.VMAddr
@@ -157,6 +171,7 @@ func UpdateLeaderStateIfNecessary(leaderStates *pb.LeaderState) {
 		}
 	}
 	MemTable.VMToFileMap = new_VM_to_file_map
+	MemtableLock.Unlock()
 
 	GlobalFileLock.Lock()
 	FileLocks = make(map[string]*FileLock)
@@ -179,9 +194,6 @@ func UpdateLeaderStateIfNecessary(leaderStates *pb.LeaderState) {
 
 }
 
-
-
-
 /************************************************* Leader Information ***************************************************************/
 var (
 	LeaderID = -1 // Record which machine is the leader for now. -1 is the default value and mean there is no leader, at least this machine thinks
@@ -201,5 +213,3 @@ func GetLeaderAddress() string {
 	}
 	return fmt.Sprintf("fa23-cs425-18%v.cs.illinois.edu", format_parameter)
 }
-
-

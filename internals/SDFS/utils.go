@@ -15,27 +15,6 @@ import (
 
 type Empty struct{}
 
-// // update mem tables
-// func (mt *MemTable) delete(sdfsFileName string) {
-// 	for _, files := range mt.VMToFileMap {
-// 		delete(files, sdfsFileName)
-// 	}
-// 	delete(mt.fileToVMMap, sdfsFileName)
-// }
-
-// func (mt *MemTable) put(sdfsFileName string, replicas []string) {
-// 	if _, exists := mt.fileToVMMap[sdfsFileName]; !exists {
-// 		mt.fileToVMMap[sdfsFileName] = make(map[string]Empty)
-// 	}
-// 	for _, r := range replicas {
-// 		if _, exists := mt.VMToFileMap[r]; !exists {
-// 			mt.VMToFileMap[r] = make(map[string]Empty)
-// 		}
-// 		mt.VMToFileMap[r][sdfsFileName] = Empty{}
-// 		mt.fileToVMMap[sdfsFileName][r] = Empty{}
-// 	}
-// }
-
 func hashFileName(fileName string) string {
 	hash := md5.Sum([]byte(fileName))
 	hashString := fmt.Sprintf("%v", hash)
@@ -162,7 +141,6 @@ func getServerName(id int) string {
 	return global.SERVER_ADDRS[id-1]
 }
 
-
 // Generate random duration bewteen 4-6 seconds
 func randomDuration() time.Duration {
 	rand.Seed(time.Now().UnixNano())
@@ -227,4 +205,21 @@ func deleteAllFiles(dir string) error {
 		}
 	}
 	return nil
+}
+
+func randomSelect(arr []string, x int) ([]string, error) {
+	if x > len(arr) {
+		return nil, fmt.Errorf("x cannot be greater than the length of the array")
+	}
+
+	// Initialize random seed
+	rand.Seed(time.Now().UnixNano())
+
+	// Shuffle the array
+	rand.Shuffle(len(arr), func(i, j int) { arr[i], arr[j] = arr[j], arr[i] })
+
+	// Take the first x elements from the shuffled array
+	result := arr[:x]
+
+	return result, nil
 }
