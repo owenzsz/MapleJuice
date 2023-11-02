@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	SDFS_GetFile_FullMethodName            = "/cs425_mp3.SDFS/GetFile"
 	SDFS_GetACK_FullMethodName             = "/cs425_mp3.SDFS/GetACK"
+	SDFS_MultiGetFile_FullMethodName       = "/cs425_mp3.SDFS/MultiGetFile"
 	SDFS_PutFile_FullMethodName            = "/cs425_mp3.SDFS/PutFile"
 	SDFS_PutACK_FullMethodName             = "/cs425_mp3.SDFS/PutACK"
 	SDFS_DeleteFileLeader_FullMethodName   = "/cs425_mp3.SDFS/DeleteFileLeader"
@@ -36,6 +37,7 @@ const (
 type SDFSClient interface {
 	GetFile(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 	GetACK(ctx context.Context, in *GetACKRequest, opts ...grpc.CallOption) (*GetACKResponse, error)
+	MultiGetFile(ctx context.Context, in *MultiGetRequest, opts ...grpc.CallOption) (*MultiGetResponse, error)
 	PutFile(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	PutACK(ctx context.Context, in *PutACKRequest, opts ...grpc.CallOption) (*PutACKResponse, error)
 	DeleteFileLeader(ctx context.Context, in *DeleteRequestLeader, opts ...grpc.CallOption) (*DeleteResponseLeader, error)
@@ -65,6 +67,15 @@ func (c *sDFSClient) GetFile(ctx context.Context, in *GetRequest, opts ...grpc.C
 func (c *sDFSClient) GetACK(ctx context.Context, in *GetACKRequest, opts ...grpc.CallOption) (*GetACKResponse, error) {
 	out := new(GetACKResponse)
 	err := c.cc.Invoke(ctx, SDFS_GetACK_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sDFSClient) MultiGetFile(ctx context.Context, in *MultiGetRequest, opts ...grpc.CallOption) (*MultiGetResponse, error) {
+	out := new(MultiGetResponse)
+	err := c.cc.Invoke(ctx, SDFS_MultiGetFile_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +151,7 @@ func (c *sDFSClient) ReplicateFile(ctx context.Context, in *ReplicationRequest, 
 type SDFSServer interface {
 	GetFile(context.Context, *GetRequest) (*GetResponse, error)
 	GetACK(context.Context, *GetACKRequest) (*GetACKResponse, error)
+	MultiGetFile(context.Context, *MultiGetRequest) (*MultiGetResponse, error)
 	PutFile(context.Context, *PutRequest) (*PutResponse, error)
 	PutACK(context.Context, *PutACKRequest) (*PutACKResponse, error)
 	DeleteFileLeader(context.Context, *DeleteRequestLeader) (*DeleteResponseLeader, error)
@@ -159,6 +171,9 @@ func (UnimplementedSDFSServer) GetFile(context.Context, *GetRequest) (*GetRespon
 }
 func (UnimplementedSDFSServer) GetACK(context.Context, *GetACKRequest) (*GetACKResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetACK not implemented")
+}
+func (UnimplementedSDFSServer) MultiGetFile(context.Context, *MultiGetRequest) (*MultiGetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MultiGetFile not implemented")
 }
 func (UnimplementedSDFSServer) PutFile(context.Context, *PutRequest) (*PutResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutFile not implemented")
@@ -226,6 +241,24 @@ func _SDFS_GetACK_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SDFSServer).GetACK(ctx, req.(*GetACKRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SDFS_MultiGetFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MultiGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SDFSServer).MultiGetFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SDFS_MultiGetFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SDFSServer).MultiGetFile(ctx, req.(*MultiGetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -370,6 +403,10 @@ var SDFS_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetACK",
 			Handler:    _SDFS_GetACK_Handler,
+		},
+		{
+			MethodName: "MultiGetFile",
+			Handler:    _SDFS_MultiGetFile_Handler,
 		},
 		{
 			MethodName: "PutFile",

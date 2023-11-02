@@ -22,7 +22,7 @@ func requestLock(requestorAddress string, fileName string, requestType global.Re
 		if !global.Contains(lock.ReadQueue, requestorAddress) {
 			lock.ReadQueue = append(lock.ReadQueue, requestorAddress)
 		}
-		canProceed = lock.WriteCount == 0 && lock.ReadCount < 2 && (len(lock.WriteQueue) == 0 || lock.ConsecutiveReads < 4) && lock.ReadQueue[0] == requestorAddress
+		canProceed = lock.WriteCount == 0 && lock.ReadCount < 2 && (len(lock.WriteQueue) == 0 || lock.ConsecutiveReads < 4) && (lock.ReadQueue[0] == requestorAddress || lock.ReadQueue[1] == requestorAddress)
 	case global.WRITE:
 		if !global.Contains(lock.WriteQueue, requestorAddress) {
 			lock.WriteQueue = append(lock.WriteQueue, requestorAddress)
@@ -45,7 +45,7 @@ func requestLock(requestorAddress string, fileName string, requestType global.Re
 	return canProceed
 }
 
-func releaseLock(fileName string, requestType global.RequestType) {
+func releaseLock(requesterAddress string, fileName string, requestType global.RequestType) {
 	global.GlobalFileLock.Lock()
 	lock, exists := global.FileLocks[fileName]
 	global.GlobalFileLock.Unlock()
@@ -55,10 +55,23 @@ func releaseLock(fileName string, requestType global.RequestType) {
 	lock.FileLocksMutex.Lock()
 	defer lock.FileLocksMutex.Unlock()
 	if requestType == global.READ {
+		if lock.ReadCount <= 0 || len(lock.ReadQueue) <= 0 {
+			fmt.Println("Error: Read count or read queue is empty while unlocking read lock")
+			return
+		}
 		fmt.Printf("Released read lock for file %s\n", fileName)
 		lock.ReadCount--
-		lock.ReadQueue = lock.ReadQueue[1:]
+		newReadQueue, err := global.RemoveElementFromFirstTwo(lock.ReadQueue, requesterAddress)
+		if err != nil {
+			fmt.Printf("Error dequeing read queue: %s\n", err.Error())
+		} else {
+			lock.ReadQueue = newReadQueue
+		}
 	} else {
+		if lock.WriteCount <= 0 || len(lock.WriteQueue) <= 0 {
+			fmt.Println("Error: Write count or write queue is empty while unlocking write lock")
+			return
+		}
 		fmt.Printf("Released write lock for file %s\n", fileName)
 		lock.WriteCount--
 		lock.WriteQueue = lock.WriteQueue[1:]

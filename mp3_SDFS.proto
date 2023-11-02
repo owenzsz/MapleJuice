@@ -6,6 +6,7 @@ option go_package = "./protobuf";
 service SDFS {
   rpc GetFile(GetRequest) returns (GetResponse);
   rpc GetACK(GetACKRequest) returns (GetACKResponse);
+  rpc MultiGetFile(MultiGetRequest) returns (MultiGetResponse);
   rpc PutFile(PutRequest) returns (PutResponse);
   rpc PutACK(PutACKRequest) returns (PutACKResponse);
   rpc DeleteFileLeader(DeleteRequestLeader) returns (DeleteResponseLeader);
@@ -30,10 +31,21 @@ message GetResponse {
 //get ack
 message GetACKRequest {
   string fileName = 1;
+  string requesterAddress = 2;
   repeated string replicaAddresses = 3;
 }
 
 message GetACKResponse {
+  bool success = 1;
+}
+
+//multithread get
+message MultiGetRequest {
+  string sdfsFileName = 1;
+  string localFileName = 2;
+}
+
+message MultiGetResponse {
   bool success = 1;
 }
 
@@ -53,7 +65,8 @@ message PutResponse {
 message PutACKRequest {
   string fileName = 1;
   bool isReplicate = 2;
-  repeated string replicaAddresses = 3;
+  string requesterAddress = 3;
+  repeated string replicaAddresses = 4;
 }
 
 message PutACKResponse {
