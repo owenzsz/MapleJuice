@@ -1,6 +1,9 @@
 package global
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 const (
 	LOGGER_PORT          = "55555"
@@ -38,4 +41,23 @@ func Contains[T comparable](s []T, e T) bool {
 		}
 	}
 	return false
+}
+
+func RemoveElementFromFirstTwo[T comparable](s []T, e T) ([]T, error) {
+	var idx int
+	var found bool
+	for i, v := range s {
+		if i >= 2 {
+			break
+		}
+		if v == e {
+			idx = i
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("element not found in first two elements of slice")
+	}
+	return append(s[:idx], s[idx+1:]...), nil
 }
