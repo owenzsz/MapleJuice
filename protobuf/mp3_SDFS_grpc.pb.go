@@ -24,6 +24,7 @@ const (
 	SDFS_MultiGetFile_FullMethodName       = "/cs425_mp3.SDFS/MultiGetFile"
 	SDFS_PutFile_FullMethodName            = "/cs425_mp3.SDFS/PutFile"
 	SDFS_PutACK_FullMethodName             = "/cs425_mp3.SDFS/PutACK"
+	SDFS_MultiPutFile_FullMethodName       = "/cs425_mp3.SDFS/MultiPutFile"
 	SDFS_DeleteFileLeader_FullMethodName   = "/cs425_mp3.SDFS/DeleteFileLeader"
 	SDFS_DeleteFileFollower_FullMethodName = "/cs425_mp3.SDFS/DeleteFileFollower"
 	SDFS_ListFileHolder_FullMethodName     = "/cs425_mp3.SDFS/ListFileHolder"
@@ -40,6 +41,7 @@ type SDFSClient interface {
 	MultiGetFile(ctx context.Context, in *MultiGetRequest, opts ...grpc.CallOption) (*MultiGetResponse, error)
 	PutFile(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	PutACK(ctx context.Context, in *PutACKRequest, opts ...grpc.CallOption) (*PutACKResponse, error)
+	MultiPutFile(ctx context.Context, in *MultiPutRequest, opts ...grpc.CallOption) (*MultiPutResponse, error)
 	DeleteFileLeader(ctx context.Context, in *DeleteRequestLeader, opts ...grpc.CallOption) (*DeleteResponseLeader, error)
 	DeleteFileFollower(ctx context.Context, in *DeleteRequestFollower, opts ...grpc.CallOption) (*DeleteResponseFollower, error)
 	ListFileHolder(ctx context.Context, in *ListFileHolderRequest, opts ...grpc.CallOption) (*ListFileHolderResponse, error)
@@ -100,6 +102,15 @@ func (c *sDFSClient) PutACK(ctx context.Context, in *PutACKRequest, opts ...grpc
 	return out, nil
 }
 
+func (c *sDFSClient) MultiPutFile(ctx context.Context, in *MultiPutRequest, opts ...grpc.CallOption) (*MultiPutResponse, error) {
+	out := new(MultiPutResponse)
+	err := c.cc.Invoke(ctx, SDFS_MultiPutFile_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *sDFSClient) DeleteFileLeader(ctx context.Context, in *DeleteRequestLeader, opts ...grpc.CallOption) (*DeleteResponseLeader, error) {
 	out := new(DeleteResponseLeader)
 	err := c.cc.Invoke(ctx, SDFS_DeleteFileLeader_FullMethodName, in, out, opts...)
@@ -154,6 +165,7 @@ type SDFSServer interface {
 	MultiGetFile(context.Context, *MultiGetRequest) (*MultiGetResponse, error)
 	PutFile(context.Context, *PutRequest) (*PutResponse, error)
 	PutACK(context.Context, *PutACKRequest) (*PutACKResponse, error)
+	MultiPutFile(context.Context, *MultiPutRequest) (*MultiPutResponse, error)
 	DeleteFileLeader(context.Context, *DeleteRequestLeader) (*DeleteResponseLeader, error)
 	DeleteFileFollower(context.Context, *DeleteRequestFollower) (*DeleteResponseFollower, error)
 	ListFileHolder(context.Context, *ListFileHolderRequest) (*ListFileHolderResponse, error)
@@ -180,6 +192,9 @@ func (UnimplementedSDFSServer) PutFile(context.Context, *PutRequest) (*PutRespon
 }
 func (UnimplementedSDFSServer) PutACK(context.Context, *PutACKRequest) (*PutACKResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutACK not implemented")
+}
+func (UnimplementedSDFSServer) MultiPutFile(context.Context, *MultiPutRequest) (*MultiPutResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MultiPutFile not implemented")
 }
 func (UnimplementedSDFSServer) DeleteFileLeader(context.Context, *DeleteRequestLeader) (*DeleteResponseLeader, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteFileLeader not implemented")
@@ -295,6 +310,24 @@ func _SDFS_PutACK_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SDFSServer).PutACK(ctx, req.(*PutACKRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SDFS_MultiPutFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MultiPutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SDFSServer).MultiPutFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SDFS_MultiPutFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SDFSServer).MultiPutFile(ctx, req.(*MultiPutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -415,6 +448,10 @@ var SDFS_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PutACK",
 			Handler:    _SDFS_PutACK_Handler,
+		},
+		{
+			MethodName: "MultiPutFile",
+			Handler:    _SDFS_MultiPutFile_Handler,
 		},
 		{
 			MethodName: "DeleteFileLeader",
