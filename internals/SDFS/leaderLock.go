@@ -1,9 +1,52 @@
 package SDFS
 
 import (
+	fd "cs425-mp/internals/failureDetector"
 	"cs425-mp/internals/global"
 	"fmt"
 )
+
+func cleanUpDeadNodesInLeaderLock() {
+	global.GlobalFileLock.Lock()
+	defer global.GlobalFileLock.Unlock()
+	deadNodes := make([]string, 0)
+	for _, node := range global.SERVER_ADDRS {
+		if !fd.IsNodeAlive(node) {
+			deadNodes = append(deadNodes, node)
+		}
+	}
+	for _, deadNode := range deadNodes {
+		for fileName, lock := range global.FileLocks {
+			lock.FileLocksMutex.Lock()
+			if global.Contains(lock.ReadQueue, deadNode) {
+				fmt.Printf("Released read lock for file %s due to dead node\n", fileName)
+				if (len(lock.ReadQueue) > 0 && lock.ReadQueue[0] == deadNode) || (len(lock.ReadQueue) > 1 && lock.ReadQueue[1] == deadNode) {
+					lock.ReadCount--
+				}
+				newReadQueue, err := global.RemoveElementWithRange(lock.ReadQueue, deadNode, 0, len(lock.ReadQueue)-1)
+				if err != nil {
+					fmt.Printf("Error dequeing read queue: %s\n", err.Error())
+				} else {
+					lock.ReadQueue = newReadQueue
+				}
+			}
+			if global.Contains(lock.WriteQueue, deadNode) {
+				fmt.Printf("Released write lock for file %s due to dead node\n", fileName)
+				if lock.WriteQueue[0] == deadNode {
+					lock.WriteCount--
+				}
+				newWriteQueue, err := global.RemoveElementWithRange(lock.WriteQueue, deadNode, 0, len(lock.WriteQueue)-1)
+				if err != nil {
+					fmt.Printf("Error dequeing write queue: %s\n", err.Error())
+				} else {
+					lock.WriteQueue = newWriteQueue
+				}
+			}
+
+			lock.FileLocksMutex.Unlock()
+		}
+	}
+}
 
 func requestLock(requestorAddress string, fileName string, requestType global.RequestType) bool {
 	global.GlobalFileLock.Lock()
@@ -61,7 +104,7 @@ func releaseLock(requesterAddress string, fileName string, requestType global.Re
 		}
 		fmt.Printf("Released read lock for file %s\n", fileName)
 		lock.ReadCount--
-		newReadQueue, err := global.RemoveElementFromFirstTwo(lock.ReadQueue, requesterAddress)
+		newReadQueue, err := global.RemoveElementWithRange(lock.ReadQueue, requesterAddress, 0, 1)
 		if err != nil {
 			fmt.Printf("Error dequeing read queue: %s\n", err.Error())
 		} else {
@@ -74,6 +117,11 @@ func releaseLock(requesterAddress string, fileName string, requestType global.Re
 		}
 		fmt.Printf("Released write lock for file %s\n", fileName)
 		lock.WriteCount--
-		lock.WriteQueue = lock.WriteQueue[1:]
+		newWriteQueue, err := global.RemoveElementWithRange(lock.ReadQueue, requesterAddress, 0, 0)
+		if err != nil {
+			fmt.Printf("Error dequeing read queue: %s\n", err.Error())
+		} else {
+			lock.WriteQueue = newWriteQueue
+		}
 	}
 }

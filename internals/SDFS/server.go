@@ -71,8 +71,10 @@ func cleanMemtableAndReplicate() {
 	}
 	global.MemtableLock.Unlock()
 	for _, VM := range VMsToCleanUp {
-		global.MemTable.DeleteVM(VM)
+		global.MemTable.DeleteVM(VM) //memtable is locked in the DeleteVM method
 	}
+
+	go cleanUpDeadNodesInLeaderLock()
 
 	replicationStartTime := time.Now()
 	needToReplicate := false
@@ -210,6 +212,14 @@ func (s *SDFSServer) PutACK(ctx context.Context, in *pb.PutACKRequest) (*pb.PutA
 		releaseLock(in.RequesterAddress, fileName, global.WRITE)
 	}
 	resp := &pb.PutACKResponse{
+		Success: true,
+	}
+	return resp, nil
+}
+
+func (s *SDFSServer) MultiPutFile(ctx context.Context, in *pb.MultiPutRequest) (*pb.MultiPutResponse, error) {
+	handlePutFile(in.LocalFileName, in.SdfsFileName)
+	resp := &pb.MultiPutResponse{
 		Success: true,
 	}
 	return resp, nil

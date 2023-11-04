@@ -2,6 +2,7 @@ package SDFS
 
 import (
 	"bufio"
+	fd "cs425-mp/internals/failureDetector"
 	"fmt"
 	"os"
 	"strings"
@@ -33,10 +34,20 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 	for {
 		//read the user input from inputChan
 		query := <-inputChan
-		trimmed := strings.TrimRight(query, "\n")
+		trimmed := strings.TrimSpace(strings.TrimRight(query, "\n"))
 		splitted := strings.Split(trimmed, " ")
 		command := splitted[0]
-		if command == "put" {
+		if command == "leave" {
+			fd.HandleLeave()
+		} else if command == "list_mem" {
+			fd.ShowMembershipList()
+		} else if command == "list_self" {
+			fd.ShowSelfID()
+		} else if command == "enable_suspicion" {
+			fd.ToggleSuspicion(true)
+		} else if command == "disable_suspicion" {
+			fd.ToggleSuspicion(false)
+		} else if command == "put" {
 			if len(splitted) != 3 {
 				fmt.Printf("Expected 3 components for put command, but got %v \n", len(splitted))
 				continue
@@ -74,13 +85,18 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			handleListLocalFiles()
 		} else if command == "multiread" {
 			if len(splitted) <= 2 {
-				fmt.Printf("Expected at least 1 target VMs for multithread command\n")
+				fmt.Printf("Expected at least 1 target VMs for multiread command\n")
 				continue
 			}
 			sdfsFileName := splitted[1]
 			localFileName := splitted[2]
 			targetVMs := splitted[3:]
 			launchMultiReads(sdfsFileName, localFileName, targetVMs)
+		} else if command == "multiwrite" {
+			sdfsFileName := splitted[1]
+			localFileName := splitted[2]
+			writers := splitted[3:]
+			launchMultiWriteRead(sdfsFileName, localFileName, writers)
 		} else {
 			fmt.Println("Command Not Supported")
 		}

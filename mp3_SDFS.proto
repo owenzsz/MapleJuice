@@ -9,6 +9,7 @@ service SDFS {
   rpc MultiGetFile(MultiGetRequest) returns (MultiGetResponse);
   rpc PutFile(PutRequest) returns (PutResponse);
   rpc PutACK(PutACKRequest) returns (PutACKResponse);
+  rpc MultiPutFile(MultiPutRequest) returns (MultiPutResponse);
   rpc DeleteFileLeader(DeleteRequestLeader) returns (DeleteResponseLeader);
   rpc DeleteFileFollower(DeleteRequestFollower) returns (DeleteResponseFollower);
   rpc ListFileHolder(ListFileHolderRequest) returns (ListFileHolderResponse);
@@ -39,7 +40,7 @@ message GetACKResponse {
   bool success = 1;
 }
 
-//multithread get
+//multi read
 message MultiGetRequest {
   string sdfsFileName = 1;
   string localFileName = 2;
@@ -70,6 +71,16 @@ message PutACKRequest {
 }
 
 message PutACKResponse {
+  bool success = 1;
+}
+
+//multi read
+message MultiPutRequest {
+  string sdfsFileName = 1;
+  string localFileName = 2;
+}
+
+message MultiPutResponse {
   bool success = 1;
 }
 

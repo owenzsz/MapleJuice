@@ -43,17 +43,17 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 		if len(splitted) == 1 {
 			switch splitted[0] {
 			case "leave":
-				handleLeave()
+				HandleLeave()
 			case "rejoin":
-				handleRejoin()
+				HandleRejoin()
 			case "list_mem":
-				showMembershipList()
+				ShowMembershipList()
 			case "list_self":
-				showSelfID()
+				ShowSelfID()
 			case "enable_suspicion":
-				toggleSuspicion(true)
+				ToggleSuspicion(true)
 			case "disable_suspicion":
-				toggleSuspicion(false)
+				ToggleSuspicion(false)
 			default:
 				fmt.Println("Error: input command not supported.")
 			}
@@ -72,7 +72,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 	}
 }
 
-func handleLeave() {
+func HandleLeave() {
 	if LOCAL_NODE_KEY == "" {
 		fmt.Println("Error: cannot leave when the current node does not exist in the network")
 		return
@@ -88,7 +88,7 @@ func handleLeave() {
 	NodeListLock.Unlock()
 }
 
-func handleRejoin() {
+func HandleRejoin() {
 	if LOCAL_NODE_KEY != "" {
 		fmt.Println("Error: cannot rejoin when the current node already exists in some networks")
 		return
@@ -101,7 +101,7 @@ func handleRejoin() {
 	}
 }
 
-func showMembershipList() {
+func ShowMembershipList() {
 	NodeListLock.Lock()
 	currList := make(map[string]Node)
 	for key, value := range NodeInfoList {
@@ -118,7 +118,7 @@ func showMembershipList() {
 	fmt.Println("***********************************************************")
 }
 
-func showSelfID() {
+func ShowSelfID() {
 	NodeListLock.Lock()
 	id := LOCAL_NODE_KEY
 	NodeListLock.Unlock()
@@ -162,7 +162,7 @@ func AdjustDropRate(_dropRate string) {
 	}
 }
 
-func toggleSuspicion(isOn bool) {
+func ToggleSuspicion(isOn bool) {
 	// VM dns names
 	VMs := []string{
 		"fa23-cs425-1801.cs.illinois.edu", "fa23-cs425-1802.cs.illinois.edu",
