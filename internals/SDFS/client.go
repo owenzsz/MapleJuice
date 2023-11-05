@@ -23,7 +23,9 @@ func handleGetFile(sdfsFileName string, localFileName string) {
 	readStartTime := time.Now()
 	for {
 		if conn == nil {
-			conn, err = grpc.Dial(global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer dialCancel()
+			conn, err = grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				fmt.Printf("did not connect: %v\n", err)
 				continue
@@ -34,7 +36,12 @@ func handleGetFile(sdfsFileName string, localFileName string) {
 		shouldWaitForLock := true
 		resp := &pb.GetResponse{}
 		for shouldWaitForLock {
-			r, err := c.GetFile(context.Background(), &pb.GetRequest{
+			// Add request max response time limit
+			timeout := 3 * time.Second
+			ctx, callCancel := context.WithTimeout(context.Background(), timeout)
+			defer callCancel()
+
+			r, err := c.GetFile(ctx, &pb.GetRequest{
 				RequesterAddress: HOSTNAME,
 				FileName:         sdfsFileName,
 			})
@@ -112,15 +119,22 @@ func sendGetACKToLeader(sdfsFileName string) {
 
 	for {
 		if conn == nil {
-			conn, err = grpc.Dial(global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer dialCancel()
+			conn, err = grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				fmt.Printf("did not connect: %v\n", err)
 				continue
 			}
 			c = pb.NewSDFSClient(conn)
 		}
+		
+		// Add request max response time limit
+		timeout := 3 * time.Second
+		ctx, callCancel := context.WithTimeout(context.Background(), timeout)
+		defer callCancel()
 
-		ackResponse, err := c.GetACK(context.Background(), &pb.GetACKRequest{
+		ackResponse, err := c.GetACK(ctx, &pb.GetACKRequest{
 			RequesterAddress: HOSTNAME,
 			FileName:         sdfsFileName,
 		})
@@ -156,7 +170,9 @@ func handlePutFile(localFileName string, sdfsFileName string) {
 	for {
 		// Establish a new connection if it doesn't exist or previous leader failed
 		if conn == nil {
-			conn, err = grpc.Dial(global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer dialCancel()
+			conn, err = grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				fmt.Printf("did not connect: %v\n", err)
 				continue
@@ -167,7 +183,12 @@ func handlePutFile(localFileName string, sdfsFileName string) {
 		shouldWaitForLock := true
 		resp := &pb.PutResponse{}
 		for shouldWaitForLock {
-			r, err := c.PutFile(context.Background(), &pb.PutRequest{
+			// Add request max response time limit
+			timeout := 3 * time.Second
+			ctx, callCancel := context.WithTimeout(context.Background(), timeout)
+			defer callCancel()
+			
+			r, err := c.PutFile(ctx, &pb.PutRequest{
 				RequesterAddress: HOSTNAME,
 				FileName:         sdfsFileName,
 			})
@@ -283,14 +304,21 @@ func sendPutACKToLeader(sdfsFileName string, targetReplicas []string, isReplicat
 
 	for {
 		if conn == nil {
-			conn, err = grpc.Dial(global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer dialCancel()
+			conn, err = grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				fmt.Printf("did not connect: %v\n", err)
 				continue
 			}
 			c = pb.NewSDFSClient(conn)
 		}
-		r, err := c.PutACK(context.Background(), &pb.PutACKRequest{
+		// Add request max response time limit
+		timeout := 3 * time.Second
+		ctx, callCancel := context.WithTimeout(context.Background(), timeout)
+		defer callCancel()
+		
+		r, err := c.PutACK(ctx, &pb.PutACKRequest{
 			FileName:         sdfsFileName,
 			ReplicaAddresses: targetReplicas,
 			IsReplicate:      isReplicate,
@@ -316,14 +344,20 @@ func sendPutACKToLeader(sdfsFileName string, targetReplicas []string, isReplicat
 }
 
 func handleDeleteFile(sdfsFileName string) {
-	conn, err := grpc.Dial(global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer dialCancel()
+	conn, err := grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Printf("did not connect: %v\n", err)
 	}
 	defer conn.Close()
 
 	c := pb.NewSDFSClient(conn)
-	r, err := c.DeleteFileLeader(context.Background(), &pb.DeleteRequestLeader{
+	// Add request max response time limit
+	timeout := 3 * time.Second
+	ctx, callCancel := context.WithTimeout(context.Background(), timeout)
+	defer callCancel()
+	r, err := c.DeleteFileLeader(ctx, &pb.DeleteRequestLeader{
 		FileName: sdfsFileName,
 	})
 
@@ -410,7 +444,9 @@ func launchMultiReads(sdfsFileName string, localFileName string, targetVMIDs []s
 		wg.Add(1)
 		go func(vmAddr string) {
 			defer wg.Done()
-			conn, err := grpc.Dial(vmAddr+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer dialCancel()
+			conn, err := grpc.DialContext(ctx, vmAddr+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				fmt.Printf("did not connect: %v\n", err)
 				mut.Lock()
@@ -452,7 +488,9 @@ func launchMultiWriteRead(sdfsFileName string, localFileName string, writerVMIDs
 		wg.Add(1)
 		go func(vmAddr string) {
 			defer wg.Done()
-			conn, err := grpc.Dial(vmAddr+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer dialCancel()
+			conn, err := grpc.DialContext(ctx, vmAddr+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				fmt.Printf("did not connect: %v\n", err)
 				mut.Lock()
