@@ -84,13 +84,19 @@ func startLeaderElection(wg *sync.WaitGroup) {
 }
 
 func monitorLeader() {
+	last_leader := global.GetLeaderID()
 	for {
-		leaderID := global.GetLeaderID()
-		if leaderID != -1 {
-			fmt.Printf("*** Current Leader is VM %v ***\n", leaderID)
-		} else {
-			fmt.Println("*** Current Leader is NIL ***")
+		
+		cur_leader := global.GetLeaderID()
+		if cur_leader != last_leader {
+			if cur_leader != -1 {
+				fmt.Printf("*** Current Leader is VM %v ***\n", cur_leader)
+			} else {
+				fmt.Println("*** Current Leader is NIL ***")
+			}
+			last_leader = cur_leader
 		}
+		
 		time.Sleep(5 * time.Second)
 	}
 }
