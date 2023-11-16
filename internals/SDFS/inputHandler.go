@@ -97,6 +97,10 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			localFileName := splitted[2]
 			writers := splitted[3:]
 			launchMultiWriteRead(sdfsFileName, localFileName, writers)
+		} else if command == "append" {
+			sdfsFileName := splitted[1]
+			content := splitted[2]
+			HandleAppendFile(sdfsFileName, content)
 		} else {
 			fmt.Println("Command Not Supported")
 		}
