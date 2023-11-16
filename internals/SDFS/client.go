@@ -4,7 +4,9 @@ import (
 	"context"
 	"cs425-mp/internals/global"
 	pb "cs425-mp/protobuf"
+	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -237,16 +239,165 @@ func handlePutFile(localFileName string, sdfsFileName string) {
 
 		fmt.Printf("Starting to put file: %s to SDFS file: %s \n", localFileName, sdfsFileName)
 		err = transferFilesConcurrent(localFileName, sdfsFileName, targetReplicas)
+		sendPutACKToLeader(sdfsFileName, targetReplicas, false)
 		if err != nil {
 			fmt.Printf("Failed to transfer file: %v\n", err)
 		} else {
-			sendPutACKToLeader(sdfsFileName, targetReplicas, false)
 			putOperationTime := time.Since(putStartTime).Milliseconds()
 			fmt.Printf("Successfully put file %s to SDFS file %s in %v ms\n", localFileName, sdfsFileName, putOperationTime)
 		}
 		conn.Close()
 		break
 	}
+}
+
+// Similar to PUT, but for file append
+func HandleAppendFile(sdfsFileName string, content string) {
+	var conn *grpc.ClientConn
+	var c pb.SDFSClient
+	var err error
+	version := rand.Intn(1<<30)
+	startTime := time.Now()
+	for {
+		// Establish a new connection if it doesn't exist or previous leader failed
+		if conn == nil {
+			ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer dialCancel()
+			conn, err = grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				fmt.Printf("did not connect: %v\n", err)
+				continue
+			}
+			c = pb.NewSDFSClient(conn)
+		}
+
+		shouldWaitForLock := true
+		resp := &pb.PutResponse{}
+		for shouldWaitForLock {
+			// Add request max response time limit
+			timeout := 3 * time.Second
+			ctx, callCancel := context.WithTimeout(context.Background(), timeout)
+			defer callCancel()
+			// Reusing PutFile() because lock acquiring process should be the same
+			r, err := c.PutFile(ctx, &pb.PutRequest{
+				RequesterAddress: HOSTNAME,
+				FileName:         sdfsFileName,
+			})
+
+			if err != nil {
+				fmt.Printf("Failed to call append: %v\n", err)
+				// Close the connection and break to outer loop to retry
+				conn.Close()
+				conn = nil
+				time.Sleep(global.RETRY_CONN_SLEEP_TIME)
+				fmt.Printf("Retrying to append file %s\n", sdfsFileName)
+				break
+			}
+
+			if r != nil {
+				if !r.Success {
+					fmt.Printf("Failed to append file sdfs %s \n", sdfsFileName)
+					conn.Close()
+					return
+				}
+
+				if r.ShouldWait {
+					fmt.Printf("Waiting for write lock on file %s\n", sdfsFileName)
+					time.Sleep(global.RETRY_LOCK_SLEEP_TIME)
+				} else {
+					shouldWaitForLock = false
+					resp = r
+				}
+			} else {
+				time.Sleep(global.RETRY_CONN_SLEEP_TIME)
+				fmt.Printf("Retrying to append file %s\n", sdfsFileName)
+			}
+		}
+
+		if shouldWaitForLock {
+			// Failed to acquire lock or reach leader, retry
+			continue
+		}
+
+		targetVMAddrs := resp.VMAddresses
+		if len(targetVMAddrs) == 0 {
+			fmt.Printf("No target VM of append provided\n")
+			conn.Close()
+			return
+		}
+
+		fmt.Printf("Starting to append to SDFS file: %s \n", sdfsFileName)
+		// err = transferFilesConcurrent(localFileName, sdfsFileName, targetVMAddrs)
+		err = sendAppendContentToVMs(content, sdfsFileName, targetVMAddrs, version)
+		sendPutACKToLeader(sdfsFileName, targetVMAddrs, false)
+		if err != nil {
+			fmt.Printf("Failed to transfer file: %v\n", err)
+		} else {
+			putOperationTime := time.Since(startTime).Milliseconds()
+			fmt.Printf("Successfully append to SDFS file %s in %v ms\n", sdfsFileName, putOperationTime)
+		}
+		conn.Close()
+		break
+	}
+}
+
+func sendAppendContentToVMs(content string, sdfsFileName string, targetVMAddrs []string, version int) error {
+	var wg sync.WaitGroup
+	var transferErrors []error
+	var mut sync.Mutex
+
+	for _, r := range targetVMAddrs {
+		wg.Add(1)
+		go func(hostname string) {
+			defer wg.Done()
+			err := callAppendEndpoint(content, sdfsFileName, hostname, version)
+			if err != nil {
+				mut.Lock()
+				transferErrors = append(transferErrors, err)
+				mut.Unlock()
+			}
+		}(r)
+	}
+
+	wg.Wait()
+
+	if len(transferErrors) > 0 {
+		return fmt.Errorf("some transfers failed: %v", transferErrors)
+	}
+
+	fmt.Printf("Successfully append file to VMs: %+q\n", targetVMAddrs)
+	return nil
+}
+
+func callAppendEndpoint(content string, sdfsFileName string, targetHostname string, version int) error {
+	ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer dialCancel()
+	conn, err := grpc.DialContext(ctx, targetHostname+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		fmt.Printf("did not connect: %v\n", err)
+		return errors.New("[callAppendEndpoint]: Cannot connect to target: " + targetHostname)
+	}
+	c := pb.NewSDFSClient(conn)
+
+	// Add request max response time limit
+	timeout := 3 * time.Second
+	ctx, callCancel := context.WithTimeout(context.Background(), timeout)
+	defer callCancel()
+	
+	r, err := c.AppendNewContent(ctx, &pb.AppendNewContentRequest{
+		FileName: sdfsFileName,
+		Content: content,
+		Version: int32(version),
+	})
+	
+	if err != nil {
+		return err
+	}
+	if !r.Success {
+		return errors.New("[callAppendEndpoint]: append response returns non-successful from " + targetHostname)
+	}
+
+	return nil
 }
 
 func transferFilesConcurrent(localFileName string, sdfsFileName string, targetReplicas []string) error {

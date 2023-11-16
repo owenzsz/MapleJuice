@@ -18,24 +18,19 @@ import (
 )
 
 const (
-	// LEADER_ADDRESS = "fa23-cs425-1801.cs.illinois.edu" // Default leader's receiving address
 	NUM_WRITE = 4
 	NUM_READ  = 1
 )
 
 var (
 	SDFS_PATH string
-	// memTable  = &MemTable{
-	// 	fileToVMMap: make(map[string]map[string]Empty), // go does not have sets, so we used a map with empty value to repersent set
-	// 	VMToFileMap: make(map[string]map[string]Empty),
-	// }
 	HOSTNAME string
 )
 
-// type MemTable struct {
-// 	fileToVMMap map[string]map[string]Empty
-// 	VMToFileMap map[string]map[string]Empty
-// }
+// Record file append's latest version. Used for idempotent file append
+var appendVersionMap map[string]int = make(map[string]int)
+
+
 
 func init() {
 	usr, err := user.Current()
@@ -215,6 +210,43 @@ func (s *SDFSServer) PutACK(ctx context.Context, in *pb.PutACKRequest) (*pb.PutA
 		Success: true,
 	}
 	return resp, nil
+}
+
+// append
+func (s *SDFSServer) AppendNewContent(ctx context.Context, in *pb.AppendNewContentRequest) (*pb.AppendNewContentResponse, error) {
+	// Ignore duplicate append, append should be idempotent
+	if currVersion, ok := appendVersionMap[in.FileName]; ok && currVersion == int(in.Version) {
+		return &pb.AppendNewContentResponse{
+			Success: true,
+		}, nil
+	}
+	fPath := filepath.Join(SDFS_PATH, in.FileName)
+	// If the file doesn't exist, create it, or append to the file
+	f, err := os.OpenFile(fPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+		// Cannot find the file to be appended
+		fmt.Printf("cannot open file %s to append: %v\n", fPath, err)
+        return &pb.AppendNewContentResponse{
+			Success: false,
+		}, nil
+    }
+    if _, err := f.Write([]byte(in.Content)); err != nil {
+        // Cannot actually append the new content to the file
+		fmt.Printf("cannot append to file %s: %v\n", fPath, err)
+        return &pb.AppendNewContentResponse{
+			Success: false,
+		}, nil
+    }
+    if err := f.Close(); err != nil {
+        // Cannot close the appended file
+		fmt.Printf("cannot close the appended file %s: %v\n", fPath, err)
+        return &pb.AppendNewContentResponse{
+			Success: false,
+		}, nil
+    }
+	return &pb.AppendNewContentResponse{
+		Success: true,
+	}, nil
 }
 
 func (s *SDFSServer) MultiPutFile(ctx context.Context, in *pb.MultiPutRequest) (*pb.MultiPutResponse, error) {

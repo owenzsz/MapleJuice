@@ -15,6 +15,7 @@ service SDFS {
   rpc ListFileHolder(ListFileHolderRequest) returns (ListFileHolderResponse);
   rpc ListLocalFiles(ListLocalFilesRequest) returns (ListLocalFilesResponse);
   rpc ReplicateFile(ReplicationRequest) returns (ReplicationResponse);
+  rpc AppendNewContent(AppendNewContentRequest) returns (AppendNewContentResponse);
 }
 
 //Get
@@ -131,5 +132,16 @@ message ReplicationRequest {
 }
 
 message ReplicationResponse {
+  bool success = 1;
+}
+
+// Append
+message AppendNewContentRequest {
+  string fileName = 1;
+  string content = 2;
+  int32 version = 3;
+}
+
+message AppendNewContentResponse {
   bool success = 1;
 }
