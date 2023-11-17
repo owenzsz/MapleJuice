@@ -41,7 +41,8 @@ message LeaderState {
   int64 version = 1;
   map<string, AddrList> FileToVMMap = 2;
   map<string, FileList> VMToFileMap = 3;
-  map<string, FileLock> FileLocks = 4;
+  map<string, int64> FileLineCountMap = 4; 
+  map<string, FileLock> FileLocks = 5;
 }
 
 

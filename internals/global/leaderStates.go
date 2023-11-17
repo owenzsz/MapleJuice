@@ -10,8 +10,9 @@ import (
 /************************************************* Leader's States ***************************************************************/
 type Empty struct{}
 type _MemTable struct {
-	FileToVMMap map[string]map[string]Empty
-	VMToFileMap map[string]map[string]Empty
+	FileToVMMap      map[string]map[string]Empty
+	VMToFileMap      map[string]map[string]Empty
+	FileLineCountMap map[string]int
 }
 
 type RequestType int
@@ -39,8 +40,9 @@ var (
 
 var (
 	MemTable = &_MemTable{
-		FileToVMMap: make(map[string]map[string]Empty), // go does not have sets, so we used a map with empty value to repersent set
-		VMToFileMap: make(map[string]map[string]Empty),
+		FileToVMMap:      make(map[string]map[string]Empty), // go does not have sets, so we used a map with empty value to repersent set
+		VMToFileMap:      make(map[string]map[string]Empty),
+		FileLineCountMap: make(map[string]int),
 	}
 	Version = 0 // Monotonically incremented when leader send Gossip in Failure Detector Module
 )
@@ -52,6 +54,7 @@ func (mt *_MemTable) DeleteFile(sdfsFileName string) {
 		delete(files, sdfsFileName)
 	}
 	delete(mt.FileToVMMap, sdfsFileName)
+	delete(mt.FileLineCountMap, sdfsFileName)
 	MemtableLock.Unlock()
 }
 
@@ -64,7 +67,7 @@ func (mt *_MemTable) DeleteVM(VMAddr string) {
 	MemtableLock.Unlock()
 }
 
-func (mt *_MemTable) Put(sdfsFileName string, replicas []string) {
+func (mt *_MemTable) Put(sdfsFileName string, replicas []string, lineCount int) {
 	MemtableLock.Lock()
 	if _, exists := mt.FileToVMMap[sdfsFileName]; !exists {
 		mt.FileToVMMap[sdfsFileName] = make(map[string]Empty)
@@ -76,6 +79,7 @@ func (mt *_MemTable) Put(sdfsFileName string, replicas []string) {
 		mt.VMToFileMap[r][sdfsFileName] = Empty{}
 		mt.FileToVMMap[sdfsFileName][r] = Empty{}
 	}
+	mt.FileLineCountMap[sdfsFileName] = lineCount
 	MemtableLock.Unlock()
 }
 
@@ -103,6 +107,11 @@ func LeaderStatesToPB(myAddr string) *pb.LeaderState {
 		for file_name := range value {
 			res.VMToFileMap[key].FileNames = append(res.VMToFileMap[key].FileNames, file_name)
 		}
+	}
+
+	res.FileLineCountMap = make(map[string]int64)
+	for key, value := range MemTable.FileLineCountMap {
+		res.FileLineCountMap[key] = int64(value)
 	}
 	MemtableLock.Unlock()
 
@@ -171,6 +180,12 @@ func UpdateLeaderStateIfNecessary(leaderStates *pb.LeaderState) {
 		}
 	}
 	MemTable.VMToFileMap = new_VM_to_file_map
+
+	new_file_line_count_map := make(map[string]int)
+	for k, v := range leaderStates.FileLineCountMap {
+		new_file_line_count_map[k] = int(v)
+	}
+	MemTable.FileLineCountMap = new_file_line_count_map
 	MemtableLock.Unlock()
 
 	GlobalFileLock.Lock()
