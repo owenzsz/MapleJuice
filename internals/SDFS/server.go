@@ -47,7 +47,7 @@ func init() {
 
 func PeriodicReplication() {
 	for {
-		if isCurrentNodeLeader() {
+		if IsCurrentNodeLeader() {
 			cleanMemtableAndReplicate()
 		}
 		time.Sleep(5 * time.Second)
@@ -164,7 +164,7 @@ func (s *SDFSServer) GetACK(ctx context.Context, in *pb.GetACKRequest) (*pb.GetA
 }
 
 func (s *SDFSServer) MultiGetFile(ctx context.Context, in *pb.MultiGetRequest) (*pb.MultiGetResponse, error) {
-	handleGetFile(in.SdfsFileName, in.LocalFileName)
+	HandleGetFile(in.SdfsFileName, in.LocalFileName)
 	resp := &pb.MultiGetResponse{
 		Success: true,
 	}
@@ -253,7 +253,7 @@ func (s *SDFSServer) AppendNewContent(ctx context.Context, in *pb.AppendNewConte
 }
 
 func (s *SDFSServer) MultiPutFile(ctx context.Context, in *pb.MultiPutRequest) (*pb.MultiPutResponse, error) {
-	handlePutFile(in.LocalFileName, in.SdfsFileName)
+	HandlePutFile(in.LocalFileName, in.SdfsFileName)
 	resp := &pb.MultiPutResponse{
 		Success: true,
 	}

@@ -73,3 +73,15 @@ func CountFileLines(filename string) (int, error) {
 
 	return lineCount, scanner.Err()
 }
+
+func ListAllFilesInDirectory(srcDirectory string) []string {
+	var inputFiles []string
+	MemtableLock.Lock()
+	for key := range MemTable.FileToVMMap {
+		if strings.HasPrefix(key, srcDirectory) {
+			inputFiles = append(inputFiles, key)
+		}
+	}
+	MemtableLock.Unlock()
+	return inputFiles
+}

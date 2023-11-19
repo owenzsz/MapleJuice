@@ -1,6 +1,7 @@
 package main
 
 import (
+	maplejuice "cs425-mp/internals/MapleJuice"
 	"cs425-mp/internals/SDFS"
 	"cs425-mp/internals/failureDetector"
 	"cs425-mp/internals/global"
@@ -14,6 +15,7 @@ func main() {
 	go startFailureDetector(&wg)
 	startSDFS(&wg)
 	startLeaderElection(&wg)
+	startMapleJuice(&wg)
 	go monitorLeader()
 
 	wg.Wait()
@@ -54,13 +56,7 @@ func startFailureDetector(wg *sync.WaitGroup) {
 }
 
 func startSDFS(wg *sync.WaitGroup) {
-	wg.Add(1)
 	fmt.Println("SDFS Started")
-	go func() {
-		defer wg.Done()
-		SDFS.HandleUserInput()
-	}()
-
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -99,4 +95,18 @@ func monitorLeader() {
 
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func startMapleJuice(wg *sync.WaitGroup) {
+	fmt.Println("MapleJuice Started")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		maplejuice.HandleUserInput()
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		maplejuice.StartMapleJuiceServer()
+	}()
 }

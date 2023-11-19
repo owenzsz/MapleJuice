@@ -1,10 +1,12 @@
-package SDFS
+package maplejuice
 
 import (
 	"bufio"
+	sdfs "cs425-mp/internals/SDFS"
 	fd "cs425-mp/internals/failureDetector"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -54,7 +56,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			}
 			localFileName := splitted[1]
 			sdfsFileName := splitted[2]
-			HandlePutFile(localFileName, sdfsFileName)
+			sdfs.HandlePutFile(localFileName, sdfsFileName)
 		} else if command == "get" {
 			if len(splitted) != 3 {
 				fmt.Printf("Expected 3 components for get command, but got %v \n", len(splitted))
@@ -62,27 +64,27 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			}
 			sdfsFileName := splitted[1]
 			localFileName := splitted[2]
-			HandleGetFile(sdfsFileName, localFileName)
+			sdfs.HandleGetFile(sdfsFileName, localFileName)
 		} else if command == "delete" {
 			if len(splitted) != 2 {
 				fmt.Printf("Expected 2 components for delete command, but got %v \n", len(splitted))
 				continue
 			}
 			sdfsFileName := splitted[1]
-			HandleDeleteFile(sdfsFileName)
+			sdfs.HandleDeleteFile(sdfsFileName)
 		} else if command == "ls" {
 			if len(splitted) != 2 {
 				fmt.Printf("Expected 2 components for ls command, but got %v \n", len(splitted))
 				continue
 			}
 			sdfsFileName := splitted[1]
-			HandleListFileHolders(sdfsFileName)
+			sdfs.HandleListFileHolders(sdfsFileName)
 		} else if command == "store" {
 			if len(splitted) != 1 {
 				fmt.Printf("Expected 1 components for store command, but got %v \n", len(splitted))
 				continue
 			}
-			HandleListLocalFiles()
+			sdfs.HandleListLocalFiles()
 		} else if command == "multiread" {
 			if len(splitted) <= 2 {
 				fmt.Printf("Expected at least 1 target VMs for multiread command\n")
@@ -91,16 +93,37 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			sdfsFileName := splitted[1]
 			localFileName := splitted[2]
 			targetVMs := splitted[3:]
-			LaunchMultiReads(sdfsFileName, localFileName, targetVMs)
+			sdfs.LaunchMultiReads(sdfsFileName, localFileName, targetVMs)
 		} else if command == "multiwrite" {
 			sdfsFileName := splitted[1]
 			localFileName := splitted[2]
 			writers := splitted[3:]
-			LaunchMultiWriteRead(sdfsFileName, localFileName, writers)
+			sdfs.LaunchMultiWriteRead(sdfsFileName, localFileName, writers)
 		} else if command == "append" {
 			sdfsFileName := splitted[1]
 			content := splitted[2]
-			HandleAppendFile(sdfsFileName, content)
+			sdfs.HandleAppendFile(sdfsFileName, content)
+		} else if command == "maple" {
+			mapleExe := splitted[1]
+			numMaples, err := strconv.Atoi(splitted[2])
+			if err != nil {
+				fmt.Println("Error parsing numMaples", err)
+			}
+			sdfsIntermediateFileNamePrefix := splitted[3]
+			sdfsSrcDirectory := splitted[4]
+			handleMaple(mapleExe, numMaples, sdfsIntermediateFileNamePrefix, sdfsSrcDirectory)
+		} else if command == "juice" {
+			juiceExe := splitted[1]
+			numJuices, err := strconv.Atoi(splitted[2])
+			if err != nil {
+				fmt.Println("Error parsing numJuices", err)
+			}
+			sdfsIntermediateFileNamePrefix := splitted[3]
+			sdfsDestFileName := splitted[4]
+			deleteInput := splitted[5] == "1"
+			partitionType := splitted[6]
+			handleJuice(juiceExe, numJuices, sdfsIntermediateFileNamePrefix, sdfsDestFileName, deleteInput, partitionType)
+
 		} else {
 			fmt.Println("Command Not Supported")
 		}
