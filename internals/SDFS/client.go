@@ -18,7 +18,7 @@ import (
 )
 
 // SDFS file operations
-func handleGetFile(sdfsFileName string, localFileName string) {
+func HandleGetFile(sdfsFileName string, localFileName string) {
 	var conn *grpc.ClientConn
 	var c pb.SDFSClient
 	var err error
@@ -159,7 +159,7 @@ func sendGetACKToLeader(sdfsFileName string) {
 	}
 }
 
-func handlePutFile(localFileName string, sdfsFileName string) {
+func HandlePutFile(localFileName string, sdfsFileName string) {
 	if _, err := os.Stat(localFileName); os.IsNotExist(err) {
 		fmt.Printf("Local file not exist: %s\n", localFileName)
 		return
@@ -504,7 +504,7 @@ func sendPutACKToLeader(lineCount int, sdfsFileName string, targetReplicas []str
 	}
 }
 
-func handleDeleteFile(sdfsFileName string) {
+func HandleDeleteFile(sdfsFileName string) {
 	ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer dialCancel()
 	conn, err := grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -532,7 +532,7 @@ func handleDeleteFile(sdfsFileName string) {
 	}
 }
 
-func handleListFileHolders(sdfsFileName string) {
+func HandleListFileHolders(sdfsFileName string) {
 	ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer dialCancel()
 	conn, err := grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -565,7 +565,7 @@ func handleListFileHolders(sdfsFileName string) {
 	}
 }
 
-func handleListLocalFiles() {
+func HandleListLocalFiles() {
 	ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer dialCancel()
 	conn, err := grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.SDFS_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -597,7 +597,7 @@ func handleListLocalFiles() {
 	}
 }
 
-func launchMultiReads(sdfsFileName string, localFileName string, targetVMIDs []string) {
+func LaunchMultiReads(sdfsFileName string, localFileName string, targetVMIDs []string) {
 	startTime := time.Now()
 	var wg sync.WaitGroup
 	var errors []error
@@ -641,7 +641,7 @@ func launchMultiReads(sdfsFileName string, localFileName string, targetVMIDs []s
 	fmt.Printf("Finished multi read file %s in %v ms \n", sdfsFileName, operationTime)
 }
 
-func launchMultiWriteRead(sdfsFileName string, localFileName string, writerVMIDs []string) {
+func LaunchMultiWriteRead(sdfsFileName string, localFileName string, writerVMIDs []string) {
 	startTime := time.Now()
 	var wg sync.WaitGroup
 	var errors []error
@@ -679,7 +679,7 @@ func launchMultiWriteRead(sdfsFileName string, localFileName string, writerVMIDs
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		handleGetFile(sdfsFileName, "1G_Local.log")
+		HandleGetFile(sdfsFileName, "1G_Local.log")
 	}()
 
 	wg.Wait()

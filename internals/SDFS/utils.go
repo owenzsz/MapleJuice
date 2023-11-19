@@ -26,7 +26,7 @@ func hashFileName(fileName string) string {
 	return fmt.Sprintf("%v", total%10+1)
 }
 
-func isCurrentNodeLeader() bool {
+func IsCurrentNodeLeader() bool {
 	return HOSTNAME == global.GetLeaderAddress()
 }
 

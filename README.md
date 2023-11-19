@@ -5,7 +5,7 @@
 
 
 ## How to Start 
-1. In directory `~/cs425-mp3` and **main** branch, run 
+1. In directory `~/cs425-mp4` and **main** branch, run 
 ```
 rm *.log
 rm fetched*
