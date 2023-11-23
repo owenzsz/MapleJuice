@@ -121,8 +121,8 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			sdfsIntermediateFileNamePrefix := splitted[3]
 			sdfsDestFileName := splitted[4]
 			deleteInput := splitted[5] == "1"
-			partitionType := splitted[6]
-			handleJuice(juiceExe, numJuices, sdfsIntermediateFileNamePrefix, sdfsDestFileName, deleteInput, partitionType)
+			isRangePartition := splitted[6] == "1" // 1 means using range partition, other means using hash partition
+			handleJuice(juiceExe, numJuices, sdfsIntermediateFileNamePrefix, sdfsDestFileName, deleteInput, isRangePartition)
 
 		} else {
 			fmt.Println("Command Not Supported")

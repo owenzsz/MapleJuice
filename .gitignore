@@ -30,3 +30,7 @@ go.work
 1[0-9]
 20
 1024
+
+
+# Test files
+test*

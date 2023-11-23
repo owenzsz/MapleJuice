@@ -12,7 +12,7 @@ import (
 )
 
 // Helper function to randomly select <= NUM nodes to gossip to
-func randomlySelectNodes(num int) []*Node {
+func RandomlySelectNodes(num int) []*Node {
 	num = global.Min(num, len(NodeInfoList)-1)
 	keys := make([]string, 0, len(NodeInfoList))
 	for k := range NodeInfoList {

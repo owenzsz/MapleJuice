@@ -45,7 +45,7 @@ func init() {
 	HOSTNAME = hn
 }
 
-func PeriodicReplication() {
+func PeriodicLeaderTasks() {
 	for {
 		if IsCurrentNodeLeader() {
 			cleanMemtableAndReplicate()
@@ -78,7 +78,7 @@ func cleanMemtableAndReplicate() {
 		replicas := listSDFSFileVMs(fileName)
 		if len(replicas) < NUM_WRITE {
 			needToReplicate = true
-			allAliveNodes := getAlivePeersAddrs()
+			allAliveNodes := GetAlivePeersAddrs()
 			disjointAddresses := findDisjointElements(allAliveNodes, replicas)
 			receiverAddresses, err := randomSelect(disjointAddresses, NUM_WRITE-len(replicas))
 			if err != nil {

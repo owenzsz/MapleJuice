@@ -8,6 +8,7 @@ service MapleJuice {
     rpc Maple (MapleRequest) returns (MapleResponse) {}
     rpc getJuiceWorkerList (JuiceRequest) returns (JuiceResponse) {}
     rpc Juice (JuiceRequest) returns (JuiceResponse) {}
+    rpc JuiceExec (JuiceExecRequest) returns (JuiceExecResponse) {}
 }
 
 //Maple
@@ -58,9 +59,24 @@ message JuiceWorkerListeResponse {
 }
 
 message JuiceRequest {
-    //TODO
+    int32 numJuicer = 1;
+    bool deleteInput = 2;
+    bool isRangePartition = 3;
+    string juiceExecName = 4;
+    string prefix = 5;
+    string destName = 6;
 }
 
 message JuiceResponse {
+    bool success = 1;
+}
+
+message JuiceExecRequest {
+    string juiceProgram = 1;
+    string dstFilename = 2;
+    repeated string inputIntermFiles = 3;
+}
+
+message JuiceExecResponse {
     bool success = 1;
 }
