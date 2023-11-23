@@ -148,7 +148,7 @@ func randomDuration() time.Duration {
 	return time.Duration(n) * time.Second
 }
 
-func getAlivePeersAddrs() []string {
+func GetAlivePeersAddrs() []string {
 	localServerAddr := getServerName(getLocalServerID())
 	fd.NodeListLock.Lock()
 	addrList := []string{}

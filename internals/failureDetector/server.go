@@ -20,7 +20,7 @@ func HandleGroupMessages() {
 		os.Exit(1)
 	}
 	defer conn.Close()
-	buffer := make([]byte, 4096)
+	buffer := make([]byte, 16384)
 	for {
 		// If current node is not initialized or is in LEFT status, do nothing
 		if LOCAL_NODE_KEY == "" {
@@ -41,7 +41,7 @@ func HandleGroupMessages() {
 		groupMessage := &pb.GroupMessage{}
 		err = proto.Unmarshal(buffer[:n], groupMessage)
 		if err != nil {
-			fmt.Printf("Error unmarshalling group message: %v\n", err.Error())
+			fmt.Printf("Error unmarshalling group message: %v, number of bytes read is %v\n", err.Error(), n)
 		}
 
 		switch groupMessage.Type {

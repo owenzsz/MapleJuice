@@ -70,7 +70,7 @@ func startSDFS(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		SDFS.PeriodicReplication()
+		SDFS.PeriodicLeaderTasks()
 	}()
 }
 
@@ -86,7 +86,7 @@ func startLeaderElection(wg *sync.WaitGroup) {
 func monitorLeader() {
 	last_leader := global.GetLeaderID()
 	for {
-		
+
 		cur_leader := global.GetLeaderID()
 		if cur_leader != last_leader {
 			if cur_leader != -1 {
@@ -96,7 +96,7 @@ func monitorLeader() {
 			}
 			last_leader = cur_leader
 		}
-		
+
 		time.Sleep(5 * time.Second)
 	}
 }

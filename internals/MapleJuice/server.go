@@ -6,6 +6,7 @@ import (
 	sdfs "cs425-mp/internals/SDFS"
 	"cs425-mp/internals/global"
 	pb "cs425-mp/protobuf"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -178,6 +179,115 @@ func runExecutableFileOnSingleInputFile(mapleExePath string, fileLine *pb.FileLi
 // 	}
 // 	return nil
 // }
+
+func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecRequest) (*pb.JuiceExecResponse, error) {
+	// Extract request fields
+	juiceProgram := in.JuiceProgram
+	dstFileName := in.DstFilename
+
+	// Get file from SDFS
+	sdfs.HandleGetFile(juiceProgram, juiceProgram)
+	for _, file := range in.InputIntermFiles {
+		sdfs.HandleGetFile(file, file)
+	}
+
+	// Create a temp file holding local aggregate results for all assigned keys
+	
+	f, err := os.CreateTemp("", "juice_local_result")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(f.Name())
+
+	// todo: make the parsing job concurrent, the file IO can be sequential and that's fine
+	for _, inputFilename := range in.InputIntermFiles {
+		file, err := os.Open(inputFilename)
+		if err != nil {
+			fmt.Printf("unable to open intermediate file input %s: %v\n", inputFilename, err)
+			return nil, err
+		}
+
+		key := ""
+		values := "" // todo: value set might be too big, move it to disk if possible
+		// Read file line by line
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			// Split the line into key and value
+			parts := strings.Split(line, ":")
+			if len(parts) == 2 {
+				key = parts[0]
+				value := parts[1]
+
+				values += value + ","
+			} else {
+				fmt.Println("Invalid line format:", line)
+				return nil, errors.New("Invalid line format:" + line)
+			}
+		}
+
+		valuesStr := values[:len(values)-1] // remove the last comma
+		programInputStr := fmt.Sprintf("%s:%s", key, valuesStr)
+		// Give value set to the juice task executable
+		cmd := exec.Command("python3", juiceProgram)
+		cmd.Stdin = strings.NewReader(programInputStr)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			fmt.Printf("Error executing script on line %s: %s\n", programInputStr, err)
+			return nil, err
+		}	
+
+		// Write the parsed key: [values set] into the temp file
+		f.Write(output)
+	}
+
+	// Append (create if necessary) temp file content to destination global file
+	data, err := os.ReadFile(f.Name())
+	if err != nil {
+		fmt.Printf("cannot read the temporary file: %v\n", err)
+	}
+	sdfs.HandleAppendFile(dstFileName, string(data))
+
+	return &pb.JuiceExecResponse{
+		Success: true,
+	}, nil
+}
+
+// Only leader should process at this endpoint
+func (s *MapleJuiceServer) Juice(ctx context.Context, in *pb.JuiceRequest) (*pb.JuiceResponse, error) {
+	if !sdfs.IsCurrentNodeLeader() {
+		return nil, errors.New("not a leader, but received Juice command")
+	}
+
+	// Extract request fields
+	juiceProgram := in.JuiceExecName
+	numJuicer := int(in.NumJuicer)
+	filePrefix := in.Prefix
+	dstFileName := in.DestName
+	deleteInputAfter := in.DeleteInput
+	useRangePartition := in.IsRangePartition
+
+	// var vmToInputFiles map[string]map[string]global.Empty
+	vmToInputFiles := createKeyAssignmentForJuicers(numJuicer, filePrefix, useRangePartition)
+	err := dispatchJuiceTasksToVMs(vmToInputFiles, juiceProgram, dstFileName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if deleteInputAfter {
+		// Delete all the input files
+		for _, fileSet := range vmToInputFiles {
+			for sdfsFilename := range fileSet {
+				global.MemTable.DeleteFile(sdfsFilename)
+			}
+		}
+	}
+
+	return &pb.JuiceResponse{
+		Success: true,
+	}, nil
+}
 
 func appendAllIntermediateResultToSDFS(KVCollection map[string][]string, prefix string) error {
 	// Iterate over the directory entries and delete each file.

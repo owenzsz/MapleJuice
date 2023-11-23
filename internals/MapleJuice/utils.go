@@ -1,10 +1,16 @@
 package maplejuice
 
 import (
+	"crypto/md5"
+	fd "cs425-mp/internals/failureDetector"
 	"cs425-mp/internals/global"
 	pb "cs425-mp/protobuf"
+	"encoding/hex"
 	"fmt"
 	"math"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 func generateMapleWorkersList(numMaples int) []string {
@@ -87,4 +93,78 @@ func assignMapleWorkToWorkers(dir string, numMaples int) []*pb.MapleWorkerListeR
 
 	return assignments
 
+}
+
+func getAndSortAllFilesWithPrefix(prefix string) []string {
+	res := make([]string, 0)	
+	global.MemtableLock.Lock()	
+	for filename := range global.MemTable.FileToVMMap {
+		if strings.HasPrefix(filename, prefix) {
+			res = append(res, filename)
+		}
+	}
+	global.MemtableLock.Unlock()
+	sort.Strings(res)
+	return res
+}
+
+
+func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePartition bool) map[string]map[string]global.Empty {
+	keyAssignment := make( map[string]map[string]global.Empty	)
+	// Get all intermediate files with filePrefix, the returning list is sorted
+	intermediateFiles := getAndSortAllFilesWithPrefix(filePrefix)
+
+	// Randomly get numJuicer number of VMs
+	selectedNode := fd.RandomlySelectNodes(numJuicer)
+
+	// Using range partitioning to assign intermediate files
+	if useRangePartition {
+		numKeys := len(intermediateFiles)
+		load := numKeys / numJuicer
+		remainder := numKeys % numJuicer
+		if remainder != 0 {
+			load++
+		}
+
+		fileIndex := 0
+		for i := 0; i<numJuicer; i++ {
+			workerAddr := selectedNode[i].NodeAddr
+			numKeyGiven := 0
+			for fileIndex < len(intermediateFiles) && numKeyGiven < load {
+				filename := intermediateFiles[fileIndex]
+				if keyAssignment[workerAddr] == nil {
+					keyAssignment[workerAddr] = map[string]global.Empty{} 
+				}
+				keyAssignment[workerAddr][filename] = global.Empty{}
+				fileIndex++
+				numKeyGiven++
+			}
+		}
+	} else {
+	// Using hash partitioning to assign intermediate files
+		for _, filename := range intermediateFiles {
+			hasher := md5.New()
+    		hasher.Write([]byte(filename))
+			checksum := hasher.Sum(nil)
+			// checksum = checksum[len(checksum)-8:]
+    		hexString := hex.EncodeToString(checksum)
+			hexString = "0"+hexString[len(hexString)-7:]
+			value, err := strconv.ParseInt(hexString, 16, 32)
+			if err != nil {
+				fmt.Printf("error in hash partitioning juice task: %v\n", err)
+			}
+			assignee := selectedNode[value % int64(len(selectedNode))]
+			if keyAssignment[assignee.NodeAddr] == nil {
+				keyAssignment[assignee.NodeAddr] = map[string]global.Empty{} 
+			}
+			keyAssignment[assignee.NodeAddr][filename] = global.Empty{}
+		}
+	}
+
+	return keyAssignment
+}
+
+
+func AssignIntermediateKeysToJuicer() {
+	
 }
