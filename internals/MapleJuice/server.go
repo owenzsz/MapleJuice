@@ -40,36 +40,38 @@ type MapleJuiceServer struct {
 // 	}
 // }
 
-func (s *MapleJuiceServer) GetMapleWorkerList(ctx context.Context, in *pb.MapleWorkerListRequest) (*pb.MapleWorkerListeResponse, error) {
-	if sdfs.IsCurrentNodeLeader() {
-		workersCount := in.NumMaples
-		dir := in.SdfsSrcDirectory
-		workerAssignments := assignMapleWorkToWorkers(dir, int(workersCount))
-		resp := &pb.MapleWorkerListeResponse{
-			Success:     true,
-			Assignments: workerAssignments,
-		}
-		return resp, nil
-	} else {
-		fmt.Println("Not the leader, cannot get maple worker list")
-		return nil, fmt.Errorf("not the leader, cannot get maple worker list")
+func (s *MapleJuiceServer) Maple(ctx context.Context, in *pb.MapleRequest) (*pb.MapleResponse, error) {
+	if !sdfs.IsCurrentNodeLeader() {
+		return nil, errors.New("not a leader, but received Maple command")
 	}
+	numMaples := in.NumMaples
+	mapleExePath := in.MapleExePath
+	prefix := in.SdfsIntermediateFilenamePrefix
+	assignments := assignMapleWorkToWorkers(in.SdfsSrcDirectory, int(numMaples))
+	err := sendMapleRequestToWorkers(assignments, mapleExePath, prefix)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.MapleResponse{
+		Success: true,
+	}, nil
 }
 
-func (s *MapleJuiceServer) Maple(ctx context.Context, in *pb.MapleRequest) (*pb.MapleResponse, error) {
-	//1. get file from SDFS
-	sdfs.HandleGetFile(in.MapleExePath, in.MapleExePath)
-	for _, file := range in.Files {
+func (s *MapleJuiceServer) MapleExec(ctx context.Context, in *pb.MapleExecRequest) (*pb.MapleExecResponse, error) {
+	files := in.Files
+	mapleExePath := in.MapleExePath
+	prefix := in.SdfsIntermediateFilenamePrefix
+
+	sdfs.HandleGetFile(mapleExePath, mapleExePath)
+	for _, file := range files {
 		sdfs.HandleGetFile(file.Filename, file.Filename)
 	}
-	//2. run maple exe on the file and designated line
-	//3. for each key, output to a temporary local file
-	runExecutableFileOnInputFiles(in.MapleExePath, in.Files, in.SdfsIntermediateFilenamePrefix)
-	//4. append the temporary local file to intermediate file on SDFS
-	resp := &pb.MapleResponse{
+	runExecutableFileOnInputFiles(mapleExePath, files, prefix)
+	resp := &pb.MapleExecResponse{
 		Success: true,
 	}
 	return resp, nil
+
 }
 
 func runExecutableFileOnInputFiles(mapleExePath string, fileLines []*pb.FileLines, prefix string) error {
@@ -192,7 +194,7 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 	}
 
 	// Create a temp file holding local aggregate results for all assigned keys
-	
+
 	f, err := os.CreateTemp("", "juice_local_result")
 	if err != nil {
 		return nil, err
@@ -235,7 +237,7 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 		if err != nil {
 			fmt.Printf("Error executing script on line %s: %s\n", programInputStr, err)
 			return nil, err
-		}	
+		}
 
 		// Write the parsed key: [values set] into the temp file
 		f.Write(output)

@@ -4,19 +4,13 @@ package cs425_mp3;
 option go_package = "./protobuf";
 
 service MapleJuice {
-    rpc getMapleWorkerList (MapleWorkerListRequest) returns (MapleWorkerListeResponse) {}
     rpc Maple (MapleRequest) returns (MapleResponse) {}
-    rpc getJuiceWorkerList (JuiceRequest) returns (JuiceResponse) {}
+    rpc MapleExec (MapleExecRequest) returns (MapleExecResponse) {}
     rpc Juice (JuiceRequest) returns (JuiceResponse) {}
     rpc JuiceExec (JuiceExecRequest) returns (JuiceExecResponse) {}
 }
 
 //Maple
-message MapleWorkerListRequest {
-    int32 numMaples = 1;
-    string sdfsSrcDirectory = 2;
-}
-
 message LineRange {
     int32 start = 1;
     int32 end = 2;
@@ -27,37 +21,29 @@ message FileLines {
     LineRange range = 2;
 }
 
-message MapleWorkerListeResponse {
-    message WorkerTaskAssignment {
-        string workerAddress = 1;
-        repeated FileLines files = 2;
-    }
-      
-    bool success = 1;
-    repeated WorkerTaskAssignment assignments = 2; 
-}
-
-
 message MapleRequest {
-    string mapleExePath = 1;
-    string sdfsIntermediateFilenamePrefix = 2;
-    repeated FileLines files = 3;
+    int32 numMaples = 1;
+    string mapleExePath = 2;
+    string sdfsSrcDirectory = 3;
+    string sdfsIntermediateFilenamePrefix = 4;
 }
 
 message MapleResponse {
     bool success = 1;
 }
 
+message MapleExecRequest {
+    string mapleExePath = 1;
+    string sdfsIntermediateFilenamePrefix = 2;
+    FileLines files = 3;
+}
+
+message MapleExecResponse {
+    bool success = 1;
+}
+
 
 //Juice
-message JuiceWorkerListRequest {
-    int32 numJuices = 1;
-}
-
-message JuiceWorkerListeResponse {
-    repeated string workerAddresses = 1;
-}
-
 message JuiceRequest {
     int32 numJuicer = 1;
     bool deleteInput = 2;
