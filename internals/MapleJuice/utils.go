@@ -38,7 +38,7 @@ func calculateMapleWorkload(files []string, numMaples int) (int, error) {
 }
 
 // For each worker, assign a list of files and line ranges to process in the maple task
-func assignMapleWorkToWorkers(dir string, numMaples int) []*pb.MapleWorkerListeResponse_WorkerTaskAssignment {
+func assignMapleWorkToWorkers(dir string, numMaples int) map[string][]*pb.FileLines {
 	workersList := generateMapleWorkersList(numMaples)
 	files := global.ListAllFilesInDirectory(dir)
 	linesPerWorker, err := calculateMapleWorkload(files, numMaples)
@@ -46,14 +46,13 @@ func assignMapleWorkToWorkers(dir string, numMaples int) []*pb.MapleWorkerListeR
 		fmt.Printf("Failed to calculate maple workload: %v\n", err)
 		return nil
 	}
-	assignments := make([]*pb.MapleWorkerListeResponse_WorkerTaskAssignment, numMaples)
-	for i, workerAddress := range workersList {
-		assignments[i] = &pb.MapleWorkerListeResponse_WorkerTaskAssignment{
-			WorkerAddress: workerAddress,
-		}
+	assignments := make(map[string][]*pb.FileLines, numMaples)
+	for _, workerAddress := range workersList {
+		assignments[workerAddress] = make([]*pb.FileLines, 0)
 	}
-	currentWorker := 0
+	currentWorkerIndex := 0
 	currentLines := 0
+	currentWorker := workersList[currentWorkerIndex]
 
 	for _, file := range files {
 		lineCount, ok := global.MemTable.FileLineCountMap[file]
@@ -75,29 +74,30 @@ func assignMapleWorkToWorkers(dir string, numMaples int) []*pb.MapleWorkerListeR
 					End:   int32(endLine),
 				},
 			}
-			assignments[currentWorker].Files = append(assignments[currentWorker].Files, fileLines)
+			assignments[currentWorker] = append(assignments[currentWorker], fileLines)
 
 			lineCount -= linesToTake
 			startLine += linesToTake
 			currentLines += linesToTake
 
 			if currentLines >= linesPerWorker {
-				currentWorker++
-				if currentWorker >= numMaples {
-					currentWorker = 0 // Reset to first worker if we have more lines than workers can handle
+				currentWorkerIndex++
+				if currentWorkerIndex >= numMaples {
+					currentWorkerIndex = 0 // Reset to first worker if we have more lines than workers can handle
 				}
+				currentWorker = workersList[currentWorkerIndex]
 				currentLines = 0
 			}
 		}
 	}
-
+	fmt.Printf("Maple assignments: %v\n", assignments)
 	return assignments
 
 }
 
 func getAndSortAllFilesWithPrefix(prefix string) []string {
-	res := make([]string, 0)	
-	global.MemtableLock.Lock()	
+	res := make([]string, 0)
+	global.MemtableLock.Lock()
 	for filename := range global.MemTable.FileToVMMap {
 		if strings.HasPrefix(filename, prefix) {
 			res = append(res, filename)
@@ -108,9 +108,8 @@ func getAndSortAllFilesWithPrefix(prefix string) []string {
 	return res
 }
 
-
 func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePartition bool) map[string]map[string]global.Empty {
-	keyAssignment := make( map[string]map[string]global.Empty	)
+	keyAssignment := make(map[string]map[string]global.Empty)
 	// Get all intermediate files with filePrefix, the returning list is sorted
 	intermediateFiles := getAndSortAllFilesWithPrefix(filePrefix)
 
@@ -127,13 +126,13 @@ func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePar
 		}
 
 		fileIndex := 0
-		for i := 0; i<numJuicer; i++ {
+		for i := 0; i < numJuicer; i++ {
 			workerAddr := selectedNode[i].NodeAddr
 			numKeyGiven := 0
 			for fileIndex < len(intermediateFiles) && numKeyGiven < load {
 				filename := intermediateFiles[fileIndex]
 				if keyAssignment[workerAddr] == nil {
-					keyAssignment[workerAddr] = map[string]global.Empty{} 
+					keyAssignment[workerAddr] = map[string]global.Empty{}
 				}
 				keyAssignment[workerAddr][filename] = global.Empty{}
 				fileIndex++
@@ -141,21 +140,21 @@ func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePar
 			}
 		}
 	} else {
-	// Using hash partitioning to assign intermediate files
+		// Using hash partitioning to assign intermediate files
 		for _, filename := range intermediateFiles {
 			hasher := md5.New()
-    		hasher.Write([]byte(filename))
+			hasher.Write([]byte(filename))
 			checksum := hasher.Sum(nil)
 			// checksum = checksum[len(checksum)-8:]
-    		hexString := hex.EncodeToString(checksum)
-			hexString = "0"+hexString[len(hexString)-7:]
+			hexString := hex.EncodeToString(checksum)
+			hexString = "0" + hexString[len(hexString)-7:]
 			value, err := strconv.ParseInt(hexString, 16, 32)
 			if err != nil {
 				fmt.Printf("error in hash partitioning juice task: %v\n", err)
 			}
-			assignee := selectedNode[value % int64(len(selectedNode))]
+			assignee := selectedNode[value%int64(len(selectedNode))]
 			if keyAssignment[assignee.NodeAddr] == nil {
-				keyAssignment[assignee.NodeAddr] = map[string]global.Empty{} 
+				keyAssignment[assignee.NodeAddr] = map[string]global.Empty{}
 			}
 			keyAssignment[assignee.NodeAddr][filename] = global.Empty{}
 		}
@@ -164,7 +163,6 @@ func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePar
 	return keyAssignment
 }
 
-
 func AssignIntermediateKeysToJuicer() {
-	
+
 }

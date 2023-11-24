@@ -17,79 +17,47 @@ import (
 //maple juice
 
 func handleMaple(mapleExePath string, numMaples int, intermediateFileNamepPrefix string, sourceDirectory string) {
-	// 1. get maple worker list
-	workersAssignments, err := requestMapleTaskAssignments(numMaples, sourceDirectory)
+	ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer dialCancel()
+	leaderConn, err := grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.MAPLE_JUICE_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		fmt.Printf("Failed to get maple worker list: %v\n", err)
+		fmt.Printf("did not connect: %v\n", err)
 	}
-	// 2. send maple request to each worker
-	err = sendMapleRequestToWorkers(workersAssignments, mapleExePath, intermediateFileNamepPrefix, sourceDirectory)
-	if err != nil {
-		fmt.Printf("Failed to execute maple task on workers: %v\n", err)
-	}
-	// 3. wait for all workers to finish
-}
-
-func requestMapleTaskAssignments(numMaples int, sourceDirectory string) ([]*pb.MapleWorkerListeResponse_WorkerTaskAssignment, error) {
-	var conn *grpc.ClientConn
-	var c pb.MapleJuiceClient
-	var err error
-	for {
-		if conn == nil {
-			ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer dialCancel()
-			conn, err = grpc.DialContext(ctx, global.GetLeaderAddress()+":"+global.MAPLE_JUICE_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
-			if err != nil {
-				fmt.Printf("did not connect: %v\n", err)
-				continue
-			}
-			c = pb.NewMapleJuiceClient(conn)
-		}
-
-		// Add request max response time limit
-		timeout := 3 * time.Second
-		ctx, callCancel := context.WithTimeout(context.Background(), timeout)
-		defer callCancel()
-
-		resp, err := c.GetMapleWorkerList(ctx, &pb.MapleWorkerListRequest{
-			NumMaples:        int32(numMaples),
-			SdfsSrcDirectory: sourceDirectory,
-		})
-		if err != nil {
-			fmt.Printf("Leader failed to process get maple worker list: %v\n", err)
-			conn.Close()
-			conn = nil
-			time.Sleep(global.RETRY_CONN_SLEEP_TIME)
-			fmt.Println("Retrying to send get maple worker list to leader")
-			continue
-		}
-		if resp == nil || !resp.Success {
-			fmt.Printf("Leader process get maple worker list unsuccessfully: %v\n", err)
-			conn.Close()
-			return nil, err
-		}
-		fmt.Printf("Leader processed get maple worker list successfully \n")
-		conn.Close()
-		return resp.Assignments, nil
+	c := pb.NewMapleJuiceClient(leaderConn)
+	resp, err := c.Maple(context.Background(), &pb.MapleRequest{
+		NumMaples:                      int32(numMaples),
+		MapleExePath:                   mapleExePath,
+		SdfsSrcDirectory:               sourceDirectory,
+		SdfsIntermediateFilenamePrefix: intermediateFileNamepPrefix,
+	})
+	if err != nil || !resp.Success {
+		fmt.Printf("Maple failed: %v\n", err)
+	} else {
+		fmt.Printf("Successfully finished processing maple request\n")
 	}
 }
 
-func sendMapleRequestToWorkers(assignments []*pb.MapleWorkerListeResponse_WorkerTaskAssignment, mapleExePath string, intermediateFileNamePrefix string, sourceDirectory string) error {
+func sendMapleRequestToWorkers(assignments map[string][]*pb.FileLines, mapleExePath string, intermediateFileNamePrefix string) error {
+	occupiedVM := make(map[string]global.Empty)
+	for k := range assignments {
+		occupiedVM[k] = global.Empty{}
+	}
+
 	var wg sync.WaitGroup
 	var mapleErrors []error
 	var mut sync.Mutex
 
-	for _, ass := range assignments {
+	for workerAddr, assignment := range assignments {
 		wg.Add(1)
-		go func(assignment *pb.MapleWorkerListeResponse_WorkerTaskAssignment) {
+		go func(_worrkerAddr string, _assignment []*pb.FileLines, _occupiedVM map[string]global.Empty) {
 			defer wg.Done()
-			err := sendMapleRequestToSingleWorker(assignment, mapleExePath, intermediateFileNamePrefix, sourceDirectory)
+			err := sendMapleRequestToSingleWorker(_worrkerAddr, _assignment, mapleExePath, intermediateFileNamePrefix, occupiedVM)
 			if err != nil {
 				mut.Lock()
 				mapleErrors = append(mapleErrors, err)
 				mut.Unlock()
 			}
-		}(ass)
+		}(workerAddr, assignment, occupiedVM)
 	}
 
 	wg.Wait()
@@ -102,34 +70,57 @@ func sendMapleRequestToWorkers(assignments []*pb.MapleWorkerListeResponse_Worker
 	return nil
 }
 
-func sendMapleRequestToSingleWorker(assignment *pb.MapleWorkerListeResponse_WorkerTaskAssignment, mapleExePath string, intermediateFileNamePrefix string, sourceDirectory string) error {
+func sendMapleRequestToSingleWorker(workerAddr string, assignment []*pb.FileLines, mapleExePath string, intermediateFileNamePrefix string, occupiedVM map[string]global.Empty) error {
 	var err error
 	ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	conn, err := grpc.DialContext(ctx, workerAddr+":"+global.MAPLE_JUICE_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	defer dialCancel()
-	conn, err := grpc.DialContext(ctx, assignment.WorkerAddress+":"+global.MAPLE_JUICE_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Printf("did not connect: %v\n", err)
+		alivePeers := sdfs.GetAlivePeersAddrs()
+		for _, vmAddr := range alivePeers {
+			if vmAddr == global.GetLeaderAddress() {
+				continue
+			}
+			if _, ok := occupiedVM[vmAddr]; !ok {
+				// Choose this new vm and schedule the inputFiles to this vm
+				occupiedVM[vmAddr] = global.Empty{}
+				// With heuristic that this recursion would end eventually, we take a leap of faith
+				fmt.Printf("Rescheduling maple request while dialing to %v\n", vmAddr)
+				return sendMapleRequestToSingleWorker(vmAddr, assignment, mapleExePath, intermediateFileNamePrefix, occupiedVM)
+			}
+		}
+		return err
 	}
 	defer conn.Close()
 	c := pb.NewMapleJuiceClient(conn)
 
-	// Add request max response time limit
-	timeout := 3 * time.Second
-	ctx, callCancel := context.WithTimeout(context.Background(), timeout)
-	defer callCancel()
-
-	resp, err := c.Maple(ctx, &pb.MapleRequest{
+	resp, err := c.MapleExec(context.Background(), &pb.MapleExecRequest{
 		MapleExePath:                   mapleExePath,
 		SdfsIntermediateFilenamePrefix: intermediateFileNamePrefix,
-		Files:                          assignment.Files,
+		Files:                          assignment,
 	})
 	if err != nil {
-		return fmt.Errorf("node %v failed to process maple request: %v", assignment.WorkerAddress, err)
+		alivePeers := sdfs.GetAlivePeersAddrs()
+		for _, vmAddr := range alivePeers {
+			// We make the assumption leader will not do any Maple/Juice tasks
+			if vmAddr == global.GetLeaderAddress() {
+				continue
+			}
+			if _, ok := occupiedVM[vmAddr]; !ok {
+				// Choose this new vm and schedule the inputFiles to this vm
+				occupiedVM[vmAddr] = global.Empty{}
+				// With heuristic that this recursion would end eventually, we take a leap of faith
+				fmt.Printf("Rescheduling maple request while sending exec to %v\n", vmAddr)
+				return sendMapleRequestToSingleWorker(vmAddr, assignment, mapleExePath, intermediateFileNamePrefix, occupiedVM)
+			}
+		}
+		return err
 	}
 	if resp == nil || !resp.Success {
-		return fmt.Errorf("node %v processed maple request unsuccessfully: %v", assignment.WorkerAddress, err)
+		return fmt.Errorf("node %v processed maple request unsuccessfully: %v", workerAddr, err)
 	}
-	fmt.Printf("Node %v processed maple request successfully\n", assignment.WorkerAddress)
+	fmt.Printf("Node %v processed maple request successfully\n", workerAddr)
 	return nil
 }
 
