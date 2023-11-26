@@ -123,7 +123,8 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			deleteInput := splitted[5] == "1"
 			isRangePartition := splitted[6] == "1" // 1 means using range partition, other means using hash partition
 			handleJuice(juiceExe, numJuices, sdfsIntermediateFileNamePrefix, sdfsDestFileName, deleteInput, isRangePartition)
-
+		} else if command == "SELECT" {
+			handleSQL(trimmed)
 		} else {
 			fmt.Println("Command Not Supported")
 		}

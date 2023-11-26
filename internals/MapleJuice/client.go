@@ -7,6 +7,7 @@ import (
 	pb "cs425-mp/protobuf"
 	"errors"
 	"fmt"
+	"regexp"
 	"sync"
 	"time"
 
@@ -243,4 +244,68 @@ func dispatchJuiceTaskToSingleVM(vm string, inputFiles map[string]global.Empty, 
 		return errors.New("juice exec failed due to logic errors: resp.Success = false")
 	}
 	return nil
+}
+
+func handleSQL(query string) {
+	dataset, regex, err := matchFilterPattern(query)
+	if err != nil {
+		dataset1, dataset2, field1, field2, err := matchJoinPattern(query)
+		if err != nil {
+			fmt.Printf("Invalid SQL query format\n")
+			return
+		}
+		handleSQLJoin(dataset1, dataset2, field1, field2)
+		return
+	}
+	handleSQLFilter(dataset, regex)
+}
+
+func matchFilterPattern(query string) (string, string, error) {
+	pattern := `SELECT ALL FROM (\w+) WHERE (.+)`
+	re := regexp.MustCompile(pattern)
+
+	// Match the pattern in the given sqlQuery
+	matches := re.FindStringSubmatch(query)
+	if len(matches) < 3 {
+		return "", "", fmt.Errorf("invalid filter query format")
+	}
+
+	// Extracted groups: Dataset, Regex Condition
+	return matches[1], matches[2], nil
+}
+
+func matchJoinPattern(query string) (string, string, string, string, error) {
+	// SELECT ALL FROM D1, D2 WHERE D1.name = D2.ID
+	pattern := `SELECT ALL FROM (\w+), (\w+) WHERE (\w+\.\w+) = (\w+\.\w+)`
+	re := regexp.MustCompile(pattern)
+
+	// Match the pattern in the given sqlQuery
+	matches := re.FindStringSubmatch(query)
+	if len(matches) < 5 {
+		return "", "", "", "", fmt.Errorf("invalid join query format")
+	}
+	return matches[1], matches[2], matches[3], matches[4], nil
+}
+
+func handleSQLFilter(dataset string, regex string) {
+	mapleExeFileName, err := generateFilterMapleExeFileWithRegex(regex)
+	if err != nil {
+		fmt.Printf("Error generating maple filter exe file: %v\n", err)
+	}
+	sdfs.HandlePutFile(mapleExeFileName, mapleExeFileName)
+	handleMaple(mapleExeFileName, 5, "filter", dataset)
+
+	juiceExeFileName, err := generateJuiceFilterExeFile()
+	if err != nil {
+		fmt.Printf("Error generating juice filter exe file: %v\n", err)
+	}
+	sdfs.HandlePutFile(juiceExeFileName, juiceExeFileName)
+	handleJuice(juiceExeFileName, 5, "filter", dataset+"_filtered", true, true)
+	sdfs.HandleGetFile(dataset+"_filtered", dataset+"_filtered")
+}
+
+func handleSQLJoin(dataset1 string, dataset2 string, condition1 string, condition2 string) {
+	// handleMaple("SQL_join_map.py", 5, "join", dataset1)
+	// handleMaple("SQL_join_map.py", 5, "join", dataset2)
+	// handleJuice("SQL_join_reduce.py", 5, "join", dataset2+"_joined", true, true)
 }

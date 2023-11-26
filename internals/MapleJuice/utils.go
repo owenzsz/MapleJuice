@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -165,4 +166,72 @@ func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePar
 
 func AssignIntermediateKeysToJuicer() {
 
+}
+
+func generateFilterMapleExeFileWithRegex(regex string) (string, error) {
+	pythonScript := fmt.Sprintf(`
+import sys
+import re
+
+regex = "%s"
+def process_line(line):
+    exist = re.search(regex, line)
+    if exist:
+        print(f"key:{line}")
+
+if __name__ == "__main__":
+    for line in sys.stdin:
+        process_line(line)
+`, regex)
+
+	fileName := "SQL_filter_map.py"
+	file, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println("Error creating Python file:", err)
+		return "", err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(pythonScript)
+	if err != nil {
+		fmt.Println("Error writing to Python file:", err)
+		return "", err
+	}
+
+	return fileName, nil
+
+}
+
+func generateJuiceFilterExeFile() (string, error) {
+	pythonScript := `
+import sys
+
+def process_line(line):
+    key, value_set = line.strip().split(':', 1)
+    agg_result = [x for x in value_set.split("::")]
+    for result in agg_result:
+        print(f"{result}")
+
+
+if __name__ == "__main__":
+    for line in sys.stdin:
+        process_line(line)
+`
+
+	// Write the Python script to a file
+	fileName := "SQL_filter_reduce.py"
+	file, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println("Error creating Python file:", err)
+		return "", err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(pythonScript)
+	if err != nil {
+		fmt.Println("Error writing to Python file:", err)
+		return "", err
+	}
+
+	return fileName, nil
 }
