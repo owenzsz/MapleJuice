@@ -35,7 +35,7 @@ message MapleResponse {
 message MapleExecRequest {
     string mapleExePath = 1;
     string sdfsIntermediateFilenamePrefix = 2;
-    FileLines files = 3;
+    repeated FileLines files = 3;
 }
 
 message MapleExecResponse {

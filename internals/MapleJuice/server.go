@@ -111,6 +111,7 @@ func runExecutableFileOnSingleInputFile(mapleExePath string, fileLine *pb.FileLi
 	file := fileLine.Filename
 	startLine := int(fileLine.Range.Start)
 	endLine := int(fileLine.Range.End)
+	fmt.Printf("Running maple executable on file %s, line %d to %d\n", file, startLine, endLine)
 	currentLine := 0
 	inputFile, err := os.Open(file)
 	if err != nil {
@@ -139,7 +140,7 @@ func runExecutableFileOnSingleInputFile(mapleExePath string, fileLine *pb.FileLi
 				value := kv[1]
 				KVCollection[key] = append(KVCollection[key], value)
 			}
-			fmt.Printf("Output from line %d: %s\n", currentLine, string(output))
+			// fmt.Printf("Output from line %d: %s\n", currentLine, string(output))
 		}
 		currentLine++
 		if currentLine > endLine {
@@ -221,14 +222,14 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 				key = parts[0]
 				value := parts[1]
 
-				values += value + ","
+				values += value + "::"
 			} else {
 				fmt.Println("Invalid line format:", line)
 				return nil, errors.New("Invalid line format:" + line)
 			}
 		}
 
-		valuesStr := values[:len(values)-1] // remove the last comma
+		valuesStr := values[:len(values)-2] // remove the last deliemeter (::)
 		programInputStr := fmt.Sprintf("%s:%s", key, valuesStr)
 		// Give value set to the juice task executable
 		cmd := exec.Command("python3", juiceProgram)
