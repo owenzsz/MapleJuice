@@ -80,6 +80,7 @@ func cleanMemtableAndReplicate() {
 			needToReplicate = true
 			allAliveNodes := GetAlivePeersAddrs()
 			disjointAddresses := findDisjointElements(allAliveNodes, replicas)
+			fmt.Printf("Randomly selecting %v neighbors\n", NUM_WRITE-len(replicas))
 			receiverAddresses, err := randomSelect(disjointAddresses, NUM_WRITE-len(replicas))
 			if err != nil {
 				fmt.Printf("Error selecting random addresses: %v\n", err)
