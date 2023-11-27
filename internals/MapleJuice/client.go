@@ -247,7 +247,7 @@ func dispatchJuiceTaskToSingleVM(vm string, inputFiles map[string]global.Empty, 
 }
 
 func handleSQL(query string) {
-	dataset, regex, err := matchFilterPattern(query)
+	dataset, field, regex, err := matchFilterPattern(query)
 	if err != nil {
 		dataset1, dataset2, field1, field2, err := matchJoinPattern(query)
 		if err != nil {
@@ -257,21 +257,21 @@ func handleSQL(query string) {
 		handleSQLJoin(dataset1, dataset2, field1, field2)
 		return
 	}
-	handleSQLFilter(dataset, regex)
+	handleSQLFilter(dataset, field, regex)
 }
 
-func matchFilterPattern(query string) (string, string, error) {
-	pattern := `SELECT ALL FROM (\w+) WHERE (.+)`
+func matchFilterPattern(query string) (string, string, string, error) {
+	pattern := `SELECT ALL FROM (\w+) WHERE (\w+) REGEX (.+)`
 	re := regexp.MustCompile(pattern)
 
 	// Match the pattern in the given sqlQuery
 	matches := re.FindStringSubmatch(query)
 	if len(matches) < 3 {
-		return "", "", fmt.Errorf("invalid filter query format")
+		return "", "", "", fmt.Errorf("invalid filter query format")
 	}
 
 	// Extracted groups: Dataset, Regex Condition
-	return matches[1], matches[2], nil
+	return matches[1], matches[2], matches[3], nil
 }
 
 func matchJoinPattern(query string) (string, string, string, string, error) {
@@ -287,8 +287,15 @@ func matchJoinPattern(query string) (string, string, string, string, error) {
 	return matches[1], matches[2], matches[3], matches[4], nil
 }
 
-func handleSQLFilter(dataset string, regex string) {
-	mapleExeFileName, err := generateFilterMapleExeFileWithRegex(regex)
+func handleSQLFilter(dataset string, field string, regex string) {
+	schemaFileName := dataset + "_schema"
+	sdfs.HandleGetFile(schemaFileName, schemaFileName)
+	schema, err := extractSchemaFromSchemaFile(schemaFileName)
+	if err != nil {
+		fmt.Printf("Error extracting schema from file: %v\n", err)
+		return
+	}
+	mapleExeFileName, err := generateFilterMapleExeFileWithRegex(regex, schema, field)
 	if err != nil {
 		fmt.Printf("Error generating maple filter exe file: %v\n", err)
 	}

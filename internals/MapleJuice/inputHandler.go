@@ -125,6 +125,10 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 			handleJuice(juiceExe, numJuices, sdfsIntermediateFileNamePrefix, sdfsDestFileName, deleteInput, isRangePartition)
 		} else if command == "SELECT" {
 			handleSQL(trimmed)
+		} else if command == "putwithschema" {
+			localFileName := splitted[1]
+			sdfsFileName := splitted[2]
+			sdfs.HandlePutWithSchema(localFileName, sdfsFileName)
 		} else {
 			fmt.Println("Command Not Supported")
 		}
