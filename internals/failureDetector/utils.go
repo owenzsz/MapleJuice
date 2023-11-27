@@ -12,30 +12,36 @@ import (
 )
 
 // Helper function to randomly select <= NUM nodes to gossip to
-func RandomlySelectNodes(num int) []*Node {
-	num = global.Min(num, len(NodeInfoList)-1)
+func RandomlySelectNodes(num int, excludeKeys ...string) []*Node {
+
+	excludeMap := make(map[string]bool)
+	for _, key := range excludeKeys {
+		excludeMap[key] = true
+	}
+
 	keys := make([]string, 0, len(NodeInfoList))
 	for k := range NodeInfoList {
-		// do not add self to target list
-		if k == LOCAL_NODE_KEY {
+		if excludeMap[k] {
 			continue
 		}
 		keys = append(keys, k)
 	}
 
 	rand.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
-	selectedNodes := make([]*Node, 0, len(keys))
+
+	selectedNodes := make([]*Node, 0, num)
 	for _, nodeKey := range keys {
+		if num <= 0 {
+			break
+		}
 		nodeInfo := NodeInfoList[nodeKey]
 		if nodeInfo.Status == Failed || nodeInfo.Status == Left || nodeInfo.Status == Suspected {
 			continue
 		}
 		selectedNodes = append(selectedNodes, nodeInfo)
 		num--
-		if num == 0 {
-			break
-		}
 	}
+
 	return selectedNodes
 }
 

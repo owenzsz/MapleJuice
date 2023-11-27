@@ -14,15 +14,6 @@ import (
 	"strings"
 )
 
-func generateMapleWorkersList(numMaples int) []string {
-	//TODO: This is a temporary implementation, we need to change this to a more sophisticated one
-	workersList := make([]string, numMaples)
-	for i := 0; i < numMaples; i++ {
-		workersList[i] = global.SERVER_ADDRS[i]
-	}
-	return workersList
-}
-
 func calculateMapleWorkload(files []string, numMaples int) (int, error) {
 	totalLines := 0
 	for _, file := range files {
@@ -40,7 +31,11 @@ func calculateMapleWorkload(files []string, numMaples int) (int, error) {
 
 // For each worker, assign a list of files and line ranges to process in the maple task
 func assignMapleWorkToWorkers(dir string, numMaples int) map[string][]*pb.FileLines {
-	workersList := generateMapleWorkersList(numMaples)
+	randomNodeList := fd.RandomlySelectNodes(numMaples, global.GetLeaderAddress())
+	workersList := make([]string, 0)
+	for _, node := range randomNodeList {
+		workersList = append(workersList, node.NodeAddr)
+	}
 	files := global.ListAllFilesInDirectory(dir)
 	linesPerWorker, err := calculateMapleWorkload(files, numMaples)
 	if err != nil {
@@ -115,7 +110,7 @@ func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePar
 	intermediateFiles := getAndSortAllFilesWithPrefix(filePrefix)
 
 	// Randomly get numJuicer number of VMs
-	selectedNode := fd.RandomlySelectNodes(numJuicer)
+	selectedNode := fd.RandomlySelectNodes(numJuicer, global.GetLeaderAddress())
 
 	// Using range partitioning to assign intermediate files
 	if useRangePartition {
@@ -168,21 +163,24 @@ func AssignIntermediateKeysToJuicer() {
 
 }
 
-func generateFilterMapleExeFileWithRegex(regex string) (string, error) {
+func generateFilterMapleExeFileWithRegex(regex string, schema string, field string) (string, error) {
 	pythonScript := fmt.Sprintf(`
 import sys
 import re
 
-regex = "%s"
+schema = "%s".split(',')
+field = "%s"
+regex = re.compile(r"%s")
+
 def process_line(line):
-    exist = re.search(regex, line)
-    if exist:
+    data = dict(zip(schema, line.strip().split(',')))
+    if field in data and regex.search(data[field]):
         print(f"key:{line}")
 
 if __name__ == "__main__":
     for line in sys.stdin:
         process_line(line)
-`, regex)
+`, schema, field, regex)
 
 	fileName := "SQL_filter_map.py"
 	file, err := os.Create(fileName)
@@ -234,4 +232,22 @@ if __name__ == "__main__":
 	}
 
 	return fileName, nil
+}
+
+func extractSchemaFromSchemaFile(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Printf("Error opening file %s: %v\n", filename, err)
+		return "", err
+	}
+	defer file.Close()
+
+	// Read the first line of the file
+	var schema string
+	_, err = fmt.Fscanf(file, "%s\n", &schema)
+	if err != nil {
+		fmt.Printf("Error reading schema from file %s: %v\n", filename, err)
+		return "", err
+	}
+	return schema, nil
 }

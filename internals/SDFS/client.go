@@ -1,6 +1,7 @@
 package SDFS
 
 import (
+	"bufio"
 	"context"
 	"cs425-mp/internals/global"
 	pb "cs425-mp/protobuf"
@@ -689,4 +690,49 @@ func LaunchMultiWriteRead(sdfsFileName string, localFileName string, writerVMIDs
 	}
 	operationTime := time.Since(startTime).Milliseconds()
 	fmt.Printf("Finished multi write-read file %s in %v ms \n", sdfsFileName, operationTime)
+}
+
+func HandlePutWithSchema(localFileName string, sdfsFileName string) {
+	file, err := os.Open(localFileName)
+	if err != nil {
+		fmt.Printf("Failed to open file %s\n", localFileName)
+		return
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	if !scanner.Scan() {
+		fmt.Printf("Failed to read first line of file %s\n", localFileName)
+		return
+	}
+	schema := scanner.Text()
+	schemaFileName := localFileName + "_schema"
+	schemaFile, err := os.CreateTemp("", schemaFileName)
+	if err != nil {
+		fmt.Printf("Failed to create schema file %s\n", schemaFileName)
+		return
+	}
+	defer os.Remove(schemaFile.Name())
+
+	_, err = schemaFile.WriteString(schema + "\n")
+	if err != nil {
+		fmt.Printf("Failed to write schema to file %s\n", schemaFileName)
+		return
+	}
+	HandlePutFile(schemaFile.Name(), sdfsFileName+"_schema")
+
+	dataFileName := localFileName + "_data"
+	dataFile, err := os.CreateTemp("", dataFileName)
+	if err != nil {
+		fmt.Printf("Failed to create data file %s\n", dataFileName)
+		return
+	}
+	defer os.Remove(dataFile.Name())
+	for scanner.Scan() {
+		_, err = dataFile.WriteString(scanner.Text() + "\n")
+		if err != nil {
+			fmt.Printf("Failed to write data to new data file %s\n", dataFileName)
+			return
+		}
+	}
+	HandlePutFile(dataFile.Name(), sdfsFileName)
 }

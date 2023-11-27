@@ -22,7 +22,7 @@ func PeriodicUpdate() {
 		// Perform periodic membership refresh and sendout heartbeats
 		NodeListLock.Lock()
 		gossip := NodeStatusUpdateAndNewGossip()
-		selectedNodes := RandomlySelectNodes(NUM_NODES_TO_GOSSIP)
+		selectedNodes := RandomlySelectNodes(NUM_NODES_TO_GOSSIP, LOCAL_NODE_KEY)
 		NodeListLock.Unlock()
 		SendGossip(gossip, selectedNodes)
 		time.Sleep(GOSSIP_RATE)
