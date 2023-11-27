@@ -279,11 +279,11 @@ func HandleAppendFile(sdfsFileName string, content string) {
 		resp := &pb.PutResponse{}
 		for shouldWaitForLock {
 			// Add request max response time limit
-			timeout := 3 * time.Second
-			ctx, callCancel := context.WithTimeout(context.Background(), timeout)
-			defer callCancel()
+			// timeout := 3 * time.Second
+			// ctx, callCancel := context.WithTimeout(context.Background(), timeout)
+			// defer callCancel()
 			// Reusing PutFile() because lock acquiring process should be the same
-			r, err := c.PutFile(ctx, &pb.PutRequest{
+			r, err := c.PutFile(context.Background(), &pb.PutRequest{
 				RequesterAddress: HOSTNAME,
 				FileName:         sdfsFileName,
 			})

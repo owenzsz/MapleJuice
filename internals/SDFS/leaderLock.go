@@ -6,6 +6,10 @@ import (
 	"fmt"
 )
 
+const (
+	NUM_CONCURRENT_READ_LIMIT = 2
+)
+
 func cleanUpDeadNodesInLeaderLock() {
 	global.GlobalFileLock.Lock()
 	defer global.GlobalFileLock.Unlock()
@@ -104,7 +108,7 @@ func releaseLock(requesterAddress string, fileName string, requestType global.Re
 		}
 		fmt.Printf("Released read lock for file %s\n", fileName)
 		lock.ReadCount--
-		newReadQueue, err := global.RemoveElementWithRange(lock.ReadQueue, requesterAddress, 0, 1)
+		newReadQueue, err := global.RemoveElementWithRange(lock.ReadQueue, requesterAddress, 0, NUM_CONCURRENT_READ_LIMIT-1)
 		if err != nil {
 			fmt.Printf("Error dequeing read queue: %s\n", err.Error())
 		} else {

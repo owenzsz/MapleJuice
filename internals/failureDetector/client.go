@@ -65,7 +65,7 @@ func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {
 			}
 		}
 	}
-	gossip := newMessageOfType(pb.GroupMessage_GOSSIP, true)
+	gossip := newMessageOfType(pb.GroupMessage_GOSSIP)
 	return gossip
 }
 
