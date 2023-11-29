@@ -3,6 +3,11 @@ package cs425_mp2;
 
 option go_package = "./protobuf";
 
+service GroupMembership {
+  // HeartBeat between leader and followers
+  rpc LeaderStateBroadcast(LeaderStateReplicationPush) returns (LeaderStateReplicationAck) {}
+}
+
 message NodeInfoRow {
   enum NodeStatus {
     Alive = 0;
@@ -56,4 +61,13 @@ message GroupMessage {
   MessageType type = 1;
   NodeInfoList node_info_list = 2;
   optional LeaderState leader_state = 3; // Only make sense in MP3 for leader state replication.
+}
+
+
+message LeaderStateReplicationPush {
+  LeaderState leader_state = 1;
+}
+
+message LeaderStateReplicationAck {
+  bool received = 1;
 }

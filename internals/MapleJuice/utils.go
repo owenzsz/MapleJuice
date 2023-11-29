@@ -1,6 +1,7 @@
 package maplejuice
 
 import (
+	"bufio"
 	"crypto/md5"
 	fd "cs425-mp/internals/failureDetector"
 	"cs425-mp/internals/global"
@@ -159,10 +160,6 @@ func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePar
 	return keyAssignment
 }
 
-func AssignIntermediateKeysToJuicer() {
-
-}
-
 func generateFilterMapleExeFileWithRegex(regex string, schema string, field string) (string, error) {
 	pythonScript := fmt.Sprintf(`
 import sys
@@ -173,13 +170,14 @@ field = "%s"
 regex = re.compile(r"%s")
 
 def process_line(line):
-    data = dict(zip(schema, line.strip().split(',')))
-    if field in data and regex.search(data[field]):
-        print(f"key:{line}")
+	line = line.strip().split("##")[1]
+	data = dict(zip(schema, line.strip().split(',')))
+	if field in data and regex.search(data[field]):
+		print(f"key:{line}")
 
 if __name__ == "__main__":
-    for line in sys.stdin:
-        process_line(line)
+	for line in sys.stdin:
+		process_line(line)		
 `, schema, field, regex)
 
 	fileName := "SQL_filter_map.py"
@@ -197,7 +195,56 @@ if __name__ == "__main__":
 	}
 
 	return fileName, nil
+}
 
+func generateJoinMapleExeFile(table1 string, column1 string, schema1 string, table2 string, column2 string, schema2 string) (string, error) {
+	pythonScript := fmt.Sprintf(`
+import sys
+
+dataset1 = "%s"
+dataset2 = "%s"
+schema1 = "%s".split(',')
+schema2 = "%s".split(',') 
+col_name1 = "%s"
+col_name2 = "%s"
+
+
+def process_line(line):
+	line_splitted = line.strip().split("##")
+	dataset = line_splitted[0]
+	row = line_splitted[1]
+
+	if dataset == dataset1:
+		data = dict(zip(schema1, row.strip().split(',')))
+		if col_name1 in data:
+			col_value = data[col_name1]
+			print(f"{col_value}:{dataset}->{row}")
+	elif dataset == dataset2:
+		data = dict(zip(schema2, row.strip().split(',')))
+		if col_name2 in data:
+			col_value = data[col_name2]
+			print(f"{col_value}:{dataset}->{row}")
+
+if __name__ == "__main__":
+	for line in sys.stdin:
+		process_line(line)
+`, table1, table2, schema1, schema2, column1, column2)
+	
+	fileName := "SQL_join_map.py"
+	file, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println("Error creating Python file:", err)
+		return "", err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(pythonScript)
+	if err != nil {
+		fmt.Println("Error writing to Python file:", err)
+		return "", err
+	}
+
+	return fileName, nil
 }
 
 func generateJuiceFilterExeFile() (string, error) {
@@ -234,6 +281,49 @@ if __name__ == "__main__":
 	return fileName, nil
 }
 
+func generateJoinJuiceExeFile() (string, error) {
+	pythonScript := `
+import sys
+
+def process_line(line):
+    # line format: {col_value}:{dataset}->{row}::{dataset}->{row}::...
+    key, value_set = line.strip().split(':', 1)
+    value_splitted = value_set.split("::")
+    datasets_names = set([x.split("->")[0] for x in value_splitted])
+    datasets_names_list = sorted(datasets_names)
+    
+    if len(datasets_names) == 2:
+        value_from_table_a = [x.split("->")[1] for x in value_splitted if (x.split("->")[0] == datasets_names_list[0])]
+        value_from_table_b = [x.split("->")[1] for x in value_splitted if (x.split("->")[0] == datasets_names_list[1])]
+        # All combination
+        for i in range(len(value_from_table_a)):
+            for j in range(len(value_from_table_b)):
+                rowL, rowR = value_from_table_a[i], value_from_table_b[j]
+                print(f"{datasets_names_list[0]}->{rowL},{datasets_names_list[1]}->{rowR}")
+
+
+if __name__ == "__main__":
+    for line in sys.stdin:
+        process_line(line)
+`
+	// Write the Python script to a file
+	fileName := "SQL_join_reduce.py"
+	file, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println("Error creating Python file:", err)
+		return "", err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(pythonScript)
+	if err != nil {
+		fmt.Println("Error writing to Python file:", err)
+		return "", err
+	}
+
+	return fileName, nil	
+}
+
 func extractSchemaFromSchemaFile(filename string) (string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -243,11 +333,58 @@ func extractSchemaFromSchemaFile(filename string) (string, error) {
 	defer file.Close()
 
 	// Read the first line of the file
-	var schema string
-	_, err = fmt.Fscanf(file, "%s\n", &schema)
-	if err != nil {
-		fmt.Printf("Error reading schema from file %s: %v\n", filename, err)
-		return "", err
-	}
+	// var schema string
+	// _, err = fmt.Fscanf(file, "%s\n", &schema)
+	// if err != nil {
+	// 	fmt.Printf("Error reading schema from file %s: %v\n", filename, err)
+	// 	return "", err
+	// }
+
+	scanner := bufio.NewScanner(file)
+	scanner.Scan()
+	schema := scanner.Text()
+	if err := scanner.Err(); err != nil {
+        return "", err
+    }
+	schema = strings.TrimPrefix(schema, "\uFEFF")
 	return schema, nil
+}
+
+// Adapted from https://golangbyexample.com/longest-common-prefix-golang/
+func longestCommonPrefix(strs []string) string {
+	lenStrs := len(strs)
+
+	if lenStrs == 0 {
+		return ""
+	}
+
+	firstString := strs[0]
+
+	lenFirstString := len(firstString)
+
+	commonPrefix := ""
+	for i := 0; i < lenFirstString; i++ {
+		firstStringChar := string(firstString[i])
+		match := true
+		for j := 1; j < lenStrs; j++ {
+			if (len(strs[j]) - 1) < i {
+				match = false
+				break
+			}
+
+			if string(strs[j][i]) != firstStringChar {
+				match = false
+				break
+			}
+
+		}
+
+		if match {
+			commonPrefix += firstStringChar
+		} else {
+			break
+		}
+	}
+
+	return commonPrefix
 }

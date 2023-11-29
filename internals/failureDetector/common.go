@@ -218,6 +218,7 @@ func newMessageOfType(messageType pb.GroupMessage_MessageType, includeLeaderStat
 		}
 	}
 
+	// ! The following branch is now deprecated and replaced by grpc service GroupMembership, 
 	// Gossip message with leader states piggybacked
 	if (len(includeLeaderStates) == 1) && includeLeaderStates[0] {
 		localHostname, _ := getLocalNodeAddress()

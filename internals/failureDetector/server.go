@@ -1,6 +1,7 @@
 package failureDetector
 
 import (
+	"context"
 	"cs425-mp/internals/global"
 	pb "cs425-mp/protobuf"
 	"fmt"
@@ -9,11 +10,49 @@ import (
 	"os"
 	"time"
 
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
 
+var s *LeaderStateServer = &LeaderStateServer{}
+
+type LeaderStateServer struct {
+	pb.UnimplementedGroupMembershipServer
+}
+
+func ListenForLeaderStates() {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return
+	}
+
+	lis, err := net.Listen("tcp", hostname+":"+global.LEADER_STATE_REPLICATION_PORT)
+	if err != nil {
+		fmt.Printf("failed to listen: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+
+	// Register services
+	pb.RegisterGroupMembershipServer(grpcServer, s)
+
+	fmt.Printf("Leader state replication server listening on %v", lis.Addr())
+
+	if err := grpcServer.Serve(lis); err != nil {
+		fmt.Printf("failed to serve: %v", err)
+	}
+}
+
+func (s *LeaderStateServer) LeaderStateBroadcast(ctx context.Context, in *pb.LeaderStateReplicationPush) (*pb.LeaderStateReplicationAck, error) {
+	global.UpdateLeaderStateIfNecessary(in.LeaderState)
+	return &pb.LeaderStateReplicationAck{Received: true,}, nil
+}
+
 // listen to group messages from other nodes and dispatch messages to corresponding handler pipelines
 func HandleGroupMessages() {
+	// Start listening for leader state information
+	go ListenForLeaderStates()
+
 	conn, err := net.ListenPacket("udp", ":"+global.FD_PORT)
 	if err != nil {
 		fmt.Println("Error listening to UDP packets: ", err)

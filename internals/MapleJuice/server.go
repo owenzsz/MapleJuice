@@ -124,7 +124,8 @@ func runExecutableFileOnSingleInputFile(mapleExePath string, fileLine *pb.FileLi
 		if currentLine >= startLine && currentLine <= endLine {
 			line := scanner.Text()
 			cmd := exec.Command("python3", mapleExePath)
-			cmd.Stdin = strings.NewReader(line)
+			// Map exe's input will have information about which sdfs file this line is coming from before the ## sign
+			cmd.Stdin = strings.NewReader(file + "##" + line)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				fmt.Printf("Error executing script on line %d: %s\n", currentLine, err)
