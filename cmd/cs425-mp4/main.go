@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	global.MP_NUMBER = 4
 	var wg sync.WaitGroup
 	go startFailureDetector(&wg)
 	startSDFS(&wg)

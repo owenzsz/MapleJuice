@@ -373,6 +373,100 @@ func (x *GroupMessage) GetLeaderState() *LeaderState {
 	return nil
 }
 
+type LeaderStateReplicationPush struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	LeaderState *LeaderState `protobuf:"bytes,1,opt,name=leader_state,json=leaderState,proto3" json:"leader_state,omitempty"`
+}
+
+func (x *LeaderStateReplicationPush) Reset() {
+	*x = LeaderStateReplicationPush{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_mp2_group_message_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LeaderStateReplicationPush) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaderStateReplicationPush) ProtoMessage() {}
+
+func (x *LeaderStateReplicationPush) ProtoReflect() protoreflect.Message {
+	mi := &file_mp2_group_message_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaderStateReplicationPush.ProtoReflect.Descriptor instead.
+func (*LeaderStateReplicationPush) Descriptor() ([]byte, []int) {
+	return file_mp2_group_message_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *LeaderStateReplicationPush) GetLeaderState() *LeaderState {
+	if x != nil {
+		return x.LeaderState
+	}
+	return nil
+}
+
+type LeaderStateReplicationAck struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Received bool `protobuf:"varint,1,opt,name=received,proto3" json:"received,omitempty"`
+}
+
+func (x *LeaderStateReplicationAck) Reset() {
+	*x = LeaderStateReplicationAck{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_mp2_group_message_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LeaderStateReplicationAck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaderStateReplicationAck) ProtoMessage() {}
+
+func (x *LeaderStateReplicationAck) ProtoReflect() protoreflect.Message {
+	mi := &file_mp2_group_message_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaderStateReplicationAck.ProtoReflect.Descriptor instead.
+func (*LeaderStateReplicationAck) Descriptor() ([]byte, []int) {
+	return file_mp2_group_message_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *LeaderStateReplicationAck) GetReceived() bool {
+	if x != nil {
+		return x.Received
+	}
+	return false
+}
+
 type LeaderState_AddrList struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -384,7 +478,7 @@ type LeaderState_AddrList struct {
 func (x *LeaderState_AddrList) Reset() {
 	*x = LeaderState_AddrList{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mp2_group_message_proto_msgTypes[4]
+		mi := &file_mp2_group_message_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -397,7 +491,7 @@ func (x *LeaderState_AddrList) String() string {
 func (*LeaderState_AddrList) ProtoMessage() {}
 
 func (x *LeaderState_AddrList) ProtoReflect() protoreflect.Message {
-	mi := &file_mp2_group_message_proto_msgTypes[4]
+	mi := &file_mp2_group_message_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +525,7 @@ type LeaderState_FileList struct {
 func (x *LeaderState_FileList) Reset() {
 	*x = LeaderState_FileList{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mp2_group_message_proto_msgTypes[5]
+		mi := &file_mp2_group_message_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -444,7 +538,7 @@ func (x *LeaderState_FileList) String() string {
 func (*LeaderState_FileList) ProtoMessage() {}
 
 func (x *LeaderState_FileList) ProtoReflect() protoreflect.Message {
-	mi := &file_mp2_group_message_proto_msgTypes[5]
+	mi := &file_mp2_group_message_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -483,7 +577,7 @@ type LeaderState_FileLock struct {
 func (x *LeaderState_FileLock) Reset() {
 	*x = LeaderState_FileLock{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mp2_group_message_proto_msgTypes[6]
+		mi := &file_mp2_group_message_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -496,7 +590,7 @@ func (x *LeaderState_FileLock) String() string {
 func (*LeaderState_FileLock) ProtoMessage() {}
 
 func (x *LeaderState_FileLock) ProtoReflect() protoreflect.Message {
-	mi := &file_mp2_group_message_proto_msgTypes[6]
+	mi := &file_mp2_group_message_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -654,9 +748,25 @@ var file_mp2_group_message_proto_rawDesc = []byte{
 	0x73, 0x73, 0x61, 0x67, 0x65, 0x54, 0x79, 0x70, 0x65, 0x12, 0x08, 0x0a, 0x04, 0x4a, 0x4f, 0x49,
 	0x4e, 0x10, 0x00, 0x12, 0x09, 0x0a, 0x05, 0x4c, 0x45, 0x41, 0x56, 0x45, 0x10, 0x01, 0x12, 0x0a,
 	0x0a, 0x06, 0x47, 0x4f, 0x53, 0x53, 0x49, 0x50, 0x10, 0x02, 0x42, 0x0f, 0x0a, 0x0d, 0x5f, 0x6c,
-	0x65, 0x61, 0x64, 0x65, 0x72, 0x5f, 0x73, 0x74, 0x61, 0x74, 0x65, 0x42, 0x0c, 0x5a, 0x0a, 0x2e,
-	0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x33,
+	0x65, 0x61, 0x64, 0x65, 0x72, 0x5f, 0x73, 0x74, 0x61, 0x74, 0x65, 0x22, 0x57, 0x0a, 0x1a, 0x4c,
+	0x65, 0x61, 0x64, 0x65, 0x72, 0x53, 0x74, 0x61, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63,
+	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x75, 0x73, 0x68, 0x12, 0x39, 0x0a, 0x0c, 0x6c, 0x65, 0x61,
+	0x64, 0x65, 0x72, 0x5f, 0x73, 0x74, 0x61, 0x74, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x16, 0x2e, 0x63, 0x73, 0x34, 0x32, 0x35, 0x5f, 0x6d, 0x70, 0x32, 0x2e, 0x4c, 0x65, 0x61, 0x64,
+	0x65, 0x72, 0x53, 0x74, 0x61, 0x74, 0x65, 0x52, 0x0b, 0x6c, 0x65, 0x61, 0x64, 0x65, 0x72, 0x53,
+	0x74, 0x61, 0x74, 0x65, 0x22, 0x37, 0x0a, 0x19, 0x4c, 0x65, 0x61, 0x64, 0x65, 0x72, 0x53, 0x74,
+	0x61, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x41, 0x63,
+	0x6b, 0x12, 0x1a, 0x0a, 0x08, 0x72, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x64, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x08, 0x52, 0x08, 0x72, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x64, 0x32, 0x78, 0x0a,
+	0x0f, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x4d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x73, 0x68, 0x69, 0x70,
+	0x12, 0x65, 0x0a, 0x14, 0x4c, 0x65, 0x61, 0x64, 0x65, 0x72, 0x53, 0x74, 0x61, 0x74, 0x65, 0x42,
+	0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x12, 0x25, 0x2e, 0x63, 0x73, 0x34, 0x32, 0x35,
+	0x5f, 0x6d, 0x70, 0x32, 0x2e, 0x4c, 0x65, 0x61, 0x64, 0x65, 0x72, 0x53, 0x74, 0x61, 0x74, 0x65,
+	0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x75, 0x73, 0x68, 0x1a,
+	0x24, 0x2e, 0x63, 0x73, 0x34, 0x32, 0x35, 0x5f, 0x6d, 0x70, 0x32, 0x2e, 0x4c, 0x65, 0x61, 0x64,
+	0x65, 0x72, 0x53, 0x74, 0x61, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69,
+	0x6f, 0x6e, 0x41, 0x63, 0x6b, 0x22, 0x00, 0x42, 0x0c, 0x5a, 0x0a, 0x2e, 0x2f, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -672,40 +782,45 @@ func file_mp2_group_message_proto_rawDescGZIP() []byte {
 }
 
 var file_mp2_group_message_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_mp2_group_message_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_mp2_group_message_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_mp2_group_message_proto_goTypes = []interface{}{
-	(NodeInfoRow_NodeStatus)(0),   // 0: cs425_mp2.NodeInfoRow.NodeStatus
-	(GroupMessage_MessageType)(0), // 1: cs425_mp2.GroupMessage.MessageType
-	(*NodeInfoRow)(nil),           // 2: cs425_mp2.NodeInfoRow
-	(*NodeInfoList)(nil),          // 3: cs425_mp2.NodeInfoList
-	(*LeaderState)(nil),           // 4: cs425_mp2.LeaderState
-	(*GroupMessage)(nil),          // 5: cs425_mp2.GroupMessage
-	(*LeaderState_AddrList)(nil),  // 6: cs425_mp2.LeaderState.AddrList
-	(*LeaderState_FileList)(nil),  // 7: cs425_mp2.LeaderState.FileList
-	(*LeaderState_FileLock)(nil),  // 8: cs425_mp2.LeaderState.FileLock
-	nil,                           // 9: cs425_mp2.LeaderState.FileToVMMapEntry
-	nil,                           // 10: cs425_mp2.LeaderState.VMToFileMapEntry
-	nil,                           // 11: cs425_mp2.LeaderState.FileLineCountMapEntry
-	nil,                           // 12: cs425_mp2.LeaderState.FileLocksEntry
+	(NodeInfoRow_NodeStatus)(0),        // 0: cs425_mp2.NodeInfoRow.NodeStatus
+	(GroupMessage_MessageType)(0),      // 1: cs425_mp2.GroupMessage.MessageType
+	(*NodeInfoRow)(nil),                // 2: cs425_mp2.NodeInfoRow
+	(*NodeInfoList)(nil),               // 3: cs425_mp2.NodeInfoList
+	(*LeaderState)(nil),                // 4: cs425_mp2.LeaderState
+	(*GroupMessage)(nil),               // 5: cs425_mp2.GroupMessage
+	(*LeaderStateReplicationPush)(nil), // 6: cs425_mp2.LeaderStateReplicationPush
+	(*LeaderStateReplicationAck)(nil),  // 7: cs425_mp2.LeaderStateReplicationAck
+	(*LeaderState_AddrList)(nil),       // 8: cs425_mp2.LeaderState.AddrList
+	(*LeaderState_FileList)(nil),       // 9: cs425_mp2.LeaderState.FileList
+	(*LeaderState_FileLock)(nil),       // 10: cs425_mp2.LeaderState.FileLock
+	nil,                                // 11: cs425_mp2.LeaderState.FileToVMMapEntry
+	nil,                                // 12: cs425_mp2.LeaderState.VMToFileMapEntry
+	nil,                                // 13: cs425_mp2.LeaderState.FileLineCountMapEntry
+	nil,                                // 14: cs425_mp2.LeaderState.FileLocksEntry
 }
 var file_mp2_group_message_proto_depIdxs = []int32{
 	0,  // 0: cs425_mp2.NodeInfoRow.status:type_name -> cs425_mp2.NodeInfoRow.NodeStatus
 	2,  // 1: cs425_mp2.NodeInfoList.rows:type_name -> cs425_mp2.NodeInfoRow
-	9,  // 2: cs425_mp2.LeaderState.FileToVMMap:type_name -> cs425_mp2.LeaderState.FileToVMMapEntry
-	10, // 3: cs425_mp2.LeaderState.VMToFileMap:type_name -> cs425_mp2.LeaderState.VMToFileMapEntry
-	11, // 4: cs425_mp2.LeaderState.FileLineCountMap:type_name -> cs425_mp2.LeaderState.FileLineCountMapEntry
-	12, // 5: cs425_mp2.LeaderState.FileLocks:type_name -> cs425_mp2.LeaderState.FileLocksEntry
+	11, // 2: cs425_mp2.LeaderState.FileToVMMap:type_name -> cs425_mp2.LeaderState.FileToVMMapEntry
+	12, // 3: cs425_mp2.LeaderState.VMToFileMap:type_name -> cs425_mp2.LeaderState.VMToFileMapEntry
+	13, // 4: cs425_mp2.LeaderState.FileLineCountMap:type_name -> cs425_mp2.LeaderState.FileLineCountMapEntry
+	14, // 5: cs425_mp2.LeaderState.FileLocks:type_name -> cs425_mp2.LeaderState.FileLocksEntry
 	1,  // 6: cs425_mp2.GroupMessage.type:type_name -> cs425_mp2.GroupMessage.MessageType
 	3,  // 7: cs425_mp2.GroupMessage.node_info_list:type_name -> cs425_mp2.NodeInfoList
 	4,  // 8: cs425_mp2.GroupMessage.leader_state:type_name -> cs425_mp2.LeaderState
-	6,  // 9: cs425_mp2.LeaderState.FileToVMMapEntry.value:type_name -> cs425_mp2.LeaderState.AddrList
-	7,  // 10: cs425_mp2.LeaderState.VMToFileMapEntry.value:type_name -> cs425_mp2.LeaderState.FileList
-	8,  // 11: cs425_mp2.LeaderState.FileLocksEntry.value:type_name -> cs425_mp2.LeaderState.FileLock
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	4,  // 9: cs425_mp2.LeaderStateReplicationPush.leader_state:type_name -> cs425_mp2.LeaderState
+	8,  // 10: cs425_mp2.LeaderState.FileToVMMapEntry.value:type_name -> cs425_mp2.LeaderState.AddrList
+	9,  // 11: cs425_mp2.LeaderState.VMToFileMapEntry.value:type_name -> cs425_mp2.LeaderState.FileList
+	10, // 12: cs425_mp2.LeaderState.FileLocksEntry.value:type_name -> cs425_mp2.LeaderState.FileLock
+	6,  // 13: cs425_mp2.GroupMembership.LeaderStateBroadcast:input_type -> cs425_mp2.LeaderStateReplicationPush
+	7,  // 14: cs425_mp2.GroupMembership.LeaderStateBroadcast:output_type -> cs425_mp2.LeaderStateReplicationAck
+	14, // [14:15] is the sub-list for method output_type
+	13, // [13:14] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_mp2_group_message_proto_init() }
@@ -763,7 +878,7 @@ func file_mp2_group_message_proto_init() {
 			}
 		}
 		file_mp2_group_message_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LeaderState_AddrList); i {
+			switch v := v.(*LeaderStateReplicationPush); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -775,7 +890,7 @@ func file_mp2_group_message_proto_init() {
 			}
 		}
 		file_mp2_group_message_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LeaderState_FileList); i {
+			switch v := v.(*LeaderStateReplicationAck); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -787,6 +902,30 @@ func file_mp2_group_message_proto_init() {
 			}
 		}
 		file_mp2_group_message_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LeaderState_AddrList); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_mp2_group_message_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LeaderState_FileList); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_mp2_group_message_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*LeaderState_FileLock); i {
 			case 0:
 				return &v.state
@@ -806,9 +945,9 @@ func file_mp2_group_message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_mp2_group_message_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_mp2_group_message_proto_goTypes,
 		DependencyIndexes: file_mp2_group_message_proto_depIdxs,

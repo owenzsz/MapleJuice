@@ -249,12 +249,25 @@ func dispatchJuiceTaskToSingleVM(vm string, inputFiles map[string]global.Empty, 
 func handleSQL(query string) {
 	dataset, field, regex, err := matchFilterPattern(query)
 	if err != nil {
-		dataset1, dataset2, field1, field2, err := matchJoinPattern(query)
+		dataset1, dataset2, leftDataset, col1, rightDataset, col2, err := matchJoinPattern(query)
 		if err != nil {
 			fmt.Printf("Invalid SQL query format\n")
 			return
 		}
-		handleSQLJoin(dataset1, dataset2, field1, field2)
+		fmt.Printf("::::::::: %v, %v, %v, %v, %v, %v\n", dataset1, dataset2, leftDataset, col1, rightDataset, col2)
+		directoryName := longestCommonPrefix([]string{dataset1, dataset2})
+		if len(directoryName) == 0 {
+			fmt.Printf("Cannot join two tables not in the same sdfs directory (sharing some prefix)")
+			return
+		}
+		// Check if the order of tables specified in the query is correct
+		if dataset1 == leftDataset && dataset2 == rightDataset {
+			handleSQLJoin(dataset1, col1, dataset2, col2, directoryName)
+		} else if dataset1 == rightDataset && dataset2 == leftDataset {
+			handleSQLJoin(dataset2, col1, dataset1, col2, directoryName)
+		} else {
+			fmt.Printf("Invalid SQL query format, check tables")
+		}
 		return
 	}
 	handleSQLFilter(dataset, field, regex)
@@ -274,17 +287,17 @@ func matchFilterPattern(query string) (string, string, string, error) {
 	return matches[1], matches[2], matches[3], nil
 }
 
-func matchJoinPattern(query string) (string, string, string, string, error) {
+func matchJoinPattern(query string) (string, string, string, string, string, string, error) {
 	// SELECT ALL FROM D1, D2 WHERE D1.name = D2.ID
-	pattern := `SELECT ALL FROM (\w+), (\w+) WHERE (\w+\.\w+) = (\w+\.\w+)`
+	pattern := `SELECT ALL FROM (\w+), (\w+) WHERE (\w+)\.(\w+) = (\w+)\.(\w+)`
 	re := regexp.MustCompile(pattern)
 
 	// Match the pattern in the given sqlQuery
 	matches := re.FindStringSubmatch(query)
 	if len(matches) < 5 {
-		return "", "", "", "", fmt.Errorf("invalid join query format")
+		return "", "", "", "", "", "", fmt.Errorf("invalid join query format")
 	}
-	return matches[1], matches[2], matches[3], matches[4], nil
+	return matches[1], matches[2], matches[3], matches[4], matches[5], matches[6], nil
 }
 
 func handleSQLFilter(dataset string, field string, regex string) {
@@ -311,8 +324,37 @@ func handleSQLFilter(dataset string, field string, regex string) {
 	sdfs.HandleGetFile(dataset+"_filtered", dataset+"_filtered")
 }
 
-func handleSQLJoin(dataset1 string, dataset2 string, condition1 string, condition2 string) {
-	// handleMaple("SQL_join_map.py", 5, "join", dataset1)
-	// handleMaple("SQL_join_map.py", 5, "join", dataset2)
-	// handleJuice("SQL_join_reduce.py", 5, "join", dataset2+"_joined", true, true)
+func handleSQLJoin(table1 string, column1 string, table2 string, column2 string, directoryName string) {
+	// Get schema of the first table
+	schema1FileName := table1 + "_schema"
+	sdfs.HandleGetFile(schema1FileName, schema1FileName)
+	schema1, err := extractSchemaFromSchemaFile(schema1FileName)
+	if err != nil {
+		fmt.Printf("Error extracting schema from file: %v\n", err)
+		return
+	}
+	// Get schema of the second table
+	schema2FileName := table2 + "_schema"
+	sdfs.HandleGetFile(schema2FileName, schema2FileName)
+	schema2, err := extractSchemaFromSchemaFile(schema2FileName)
+	if err != nil {
+		fmt.Printf("Error extracting schema from file: %v\n", err)
+		return
+	}
+	// Generate maple exe that will be used by the SQL JOIN operation
+	MapleExeFileName, err := generateJoinMapleExeFile(table1, column1, schema1, table2, column2, schema2)
+	if err != nil {
+		fmt.Printf("Error generating maple join exe file: %v\n", err)
+	}
+	sdfs.HandlePutFile(MapleExeFileName, MapleExeFileName)
+	handleMaple(MapleExeFileName, 5, "join", directoryName)
+
+	JuiceExeFileName, err := generateJoinJuiceExeFile()
+	if err != nil {
+		fmt.Printf("Error generating juice filter exe file: %v\n", err)
+	}
+	sdfs.HandlePutFile(JuiceExeFileName, JuiceExeFileName)
+	handleJuice(JuiceExeFileName, 5, "join", directoryName+"_joined", true, true)
+	sdfs.HandleGetFile(directoryName+"_joined", directoryName+"_joined")
+	// If post processing of the joined file is needed, add at below
 }

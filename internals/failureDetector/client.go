@@ -1,6 +1,7 @@
 package failureDetector
 
 import (
+	"context"
 	"cs425-mp/internals/global"
 	pb "cs425-mp/protobuf"
 	"errors"
@@ -9,10 +10,13 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 )
 
 func PeriodicUpdate() {
+	replicateLeaderState := 0 // looping counter of 4 
 	for {
 		// If current node is not started or is still in LEFT status, do nothing
 		if LOCAL_NODE_KEY == "" {
@@ -25,8 +29,48 @@ func PeriodicUpdate() {
 		selectedNodes := RandomlySelectNodes(NUM_NODES_TO_GOSSIP, LOCAL_NODE_KEY)
 		NodeListLock.Unlock()
 		SendGossip(gossip, selectedNodes)
+		// Also broadcast current copy of leader state once every 4 rounds
+		if replicateLeaderState == 4 {
+			go multicastLeaderState(selectedNodes)
+			replicateLeaderState = 0
+		} else {
+			replicateLeaderState++
+		}
 		time.Sleep(GOSSIP_RATE)
 	}
+}
+
+func multicastLeaderState(selectedNodes []*Node) {
+	var wg sync.WaitGroup
+	localHostname, _ := getLocalNodeAddress()
+	localLeaderStateCopy := global.LeaderStatesToPB(localHostname)
+	for _, node_ptr := range selectedNodes {
+		target_addr_port := node_ptr.NodeAddr + ":" + global.LEADER_STATE_REPLICATION_PORT
+		wg.Add(1)
+		go func(target_addr string, copy *pb.LeaderState) {
+			defer wg.Done()
+			// Set up a connection to the server
+			ctx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer dialCancel()
+			conn, err := grpc.DialContext(ctx, target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				fmt.Printf("Failed to dial: %v\n", err)
+			}
+			defer conn.Close()
+			// Request vote to peers and and respond if states haven't changed since start of the election
+			client := pb.NewGroupMembershipClient(conn)
+			timeout := 2 * time.Second
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+			ack, err := client.LeaderStateBroadcast(ctx, &pb.LeaderStateReplicationPush{
+				LeaderState: copy,
+			})
+			if err != nil || !ack.Received {
+				fmt.Printf("Leader state replication failed sending to %v, %v\n", target_addr, err)
+			}
+		}(target_addr_port, localLeaderStateCopy)
+	}
+	// wg.Wait()
 }
 
 func NodeStatusUpdateAndNewGossip() *pb.GroupMessage {

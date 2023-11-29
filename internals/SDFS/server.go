@@ -143,7 +143,12 @@ type SDFSServer struct {
 func (s *SDFSServer) GetFile(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse, error) {
 	fileName := in.FileName
 	var vmList []string
-	canProceed := requestLock(in.RequesterAddress, fileName, global.READ)
+	var canProceed bool
+	if global.MP_NUMBER != 4 {
+		canProceed = requestLock(in.RequesterAddress, fileName, global.READ)
+	} else {
+		canProceed = true
+	}
 	if canProceed {
 		vmList = listSDFSFileVMs(in.FileName)
 	}
@@ -157,7 +162,9 @@ func (s *SDFSServer) GetFile(ctx context.Context, in *pb.GetRequest) (*pb.GetRes
 
 // Get ACK (sent to leader)
 func (s *SDFSServer) GetACK(ctx context.Context, in *pb.GetACKRequest) (*pb.GetACKResponse, error) {
-	releaseLock(in.RequesterAddress, in.FileName, global.READ)
+	if global.MP_NUMBER != 4 {
+		releaseLock(in.RequesterAddress, in.FileName, global.READ)
+	}
 	resp := &pb.GetACKResponse{
 		Success: true,
 	}
