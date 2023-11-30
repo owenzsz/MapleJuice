@@ -16,7 +16,7 @@ import (
 )
 
 func PeriodicUpdate() {
-	replicateLeaderState := 0 // looping counter of 4 
+	replicateLeaderState := 0 // looping counter of 4
 	for {
 		// If current node is not started or is still in LEFT status, do nothing
 		if LOCAL_NODE_KEY == "" {
@@ -26,7 +26,7 @@ func PeriodicUpdate() {
 		// Perform periodic membership refresh and sendout heartbeats
 		NodeListLock.Lock()
 		gossip := NodeStatusUpdateAndNewGossip()
-		selectedNodes := RandomlySelectNodes(NUM_NODES_TO_GOSSIP, LOCAL_NODE_KEY)
+		selectedNodes := RandomlySelectNodes(NUM_NODES_TO_GOSSIP, GetAddrFromNodeKey(LOCAL_NODE_KEY))
 		NodeListLock.Unlock()
 		SendGossip(gossip, selectedNodes)
 		// Also broadcast current copy of leader state once every 4 rounds

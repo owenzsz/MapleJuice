@@ -162,8 +162,8 @@ func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePar
 
 func generateFilterMapleExeFileWithRegex(regex string, schema string, field string) (string, error) {
 	pythonScript := fmt.Sprintf(`
-import sys
 import re
+import sys
 
 schema = "%s".split(',')
 field = "%s"
@@ -229,7 +229,7 @@ if __name__ == "__main__":
 	for line in sys.stdin:
 		process_line(line)
 `, table1, table2, schema1, schema2, column1, column2)
-	
+
 	fileName := "SQL_join_map.py"
 	file, err := os.Create(fileName)
 	if err != nil {
@@ -321,7 +321,7 @@ if __name__ == "__main__":
 		return "", err
 	}
 
-	return fileName, nil	
+	return fileName, nil
 }
 
 func extractSchemaFromSchemaFile(filename string) (string, error) {
@@ -344,8 +344,8 @@ func extractSchemaFromSchemaFile(filename string) (string, error) {
 	scanner.Scan()
 	schema := scanner.Text()
 	if err := scanner.Err(); err != nil {
-        return "", err
-    }
+		return "", err
+	}
 	schema = strings.TrimPrefix(schema, "\uFEFF")
 	return schema, nil
 }

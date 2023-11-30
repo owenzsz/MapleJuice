@@ -41,20 +41,20 @@ func HandleGetFile(sdfsFileName string, localFileName string) {
 		destinationFile := filepath.Join(destDir, localFileName)
 
 		errList := make([]error, 0)
-		source, err := os.Open(sourceFile)  //open the source file 
+		source, err := os.Open(sourceFile) //open the source file
 		if err != nil {
 			fmt.Printf("copy cache failed\n")
 			errList = append(errList, err)
 		}
 		defer source.Close()
 
-		destination, err := os.Create(destinationFile)  //create the destination file
+		destination, err := os.Create(destinationFile) //create the destination file
 		if err != nil {
 			fmt.Printf("copy cache failed\n")
 			errList = append(errList, err)
 		}
 		defer destination.Close()
-		_, err = io.Copy(destination, source)  //copy the contents of source to destination file
+		_, err = io.Copy(destination, source) //copy the contents of source to destination file
 		if err != nil {
 			fmt.Printf("copy cache failed\n")
 			errList = append(errList, err)
@@ -144,7 +144,7 @@ func HandleGetFile(sdfsFileName string, localFileName string) {
 
 			err = cmd.Wait()
 			if err != nil {
-				fmt.Printf("Command finished with error: %v\n", err)
+				fmt.Printf("Get Command finished with error: %v\n", err)
 				continue
 			}
 			break
@@ -494,7 +494,7 @@ func transferFileToReplica(localFileName string, sdfsFileName string, replica st
 
 	err = cmd.Wait()
 	if err != nil {
-		fmt.Printf("Command finished with error: %v\n", err)
+		fmt.Printf("Transfer Command finished with error: %v\n", err)
 	}
 
 	return err

@@ -274,7 +274,7 @@ func handleSQL(query string) {
 }
 
 func matchFilterPattern(query string) (string, string, string, error) {
-	pattern := `SELECT ALL FROM (\w+) WHERE (\w+) REGEX (.+)`
+	pattern := `SELECT ALL FROM (\w+) WHERE (\w+) REGEXP (.+)`
 	re := regexp.MustCompile(pattern)
 
 	// Match the pattern in the given sqlQuery
@@ -312,16 +312,24 @@ func handleSQLFilter(dataset string, field string, regex string) {
 	if err != nil {
 		fmt.Printf("Error generating maple filter exe file: %v\n", err)
 	}
+	filterStartTime := time.Now()
 	sdfs.HandlePutFile(mapleExeFileName, mapleExeFileName)
-	handleMaple(mapleExeFileName, 5, "filter", dataset)
-
+	mapleStartTime := time.Now()
+	handleMaple(mapleExeFileName, 4, "filter", dataset)
+	mapleExecutionTime := time.Since(mapleStartTime).Milliseconds()
+	fmt.Printf("Maple execution time for filter: %vms\n", mapleExecutionTime)
 	juiceExeFileName, err := generateJuiceFilterExeFile()
 	if err != nil {
 		fmt.Printf("Error generating juice filter exe file: %v\n", err)
 	}
 	sdfs.HandlePutFile(juiceExeFileName, juiceExeFileName)
-	handleJuice(juiceExeFileName, 5, "filter", dataset+"_filtered", true, true)
+	juiceStartTime := time.Now()
+	handleJuice(juiceExeFileName, 4, "filter", dataset+"_filtered", true, true)
+	juiceExecutionTime := time.Since(juiceStartTime).Milliseconds()
+	fmt.Printf("Juice execution time for filter: %vms\n", juiceExecutionTime)
 	sdfs.HandleGetFile(dataset+"_filtered", dataset+"_filtered")
+	filterExecutionTime := time.Since(filterStartTime).Milliseconds()
+	fmt.Printf("Filter execution time: %vms\n", filterExecutionTime)
 }
 
 func handleSQLJoin(table1 string, column1 string, table2 string, column2 string, directoryName string) {
@@ -346,15 +354,24 @@ func handleSQLJoin(table1 string, column1 string, table2 string, column2 string,
 	if err != nil {
 		fmt.Printf("Error generating maple join exe file: %v\n", err)
 	}
+	joinStartTime := time.Now()
 	sdfs.HandlePutFile(MapleExeFileName, MapleExeFileName)
-	handleMaple(MapleExeFileName, 5, "join", directoryName)
+	mapleStartTime := time.Now()
+	handleMaple(MapleExeFileName, 4, "join", directoryName)
+	mapleExecutionTime := time.Since(mapleStartTime).Milliseconds()
+	fmt.Printf("Maple execution time for join: %vms\n", mapleExecutionTime)
 
 	JuiceExeFileName, err := generateJoinJuiceExeFile()
 	if err != nil {
 		fmt.Printf("Error generating juice filter exe file: %v\n", err)
 	}
 	sdfs.HandlePutFile(JuiceExeFileName, JuiceExeFileName)
-	handleJuice(JuiceExeFileName, 5, "join", directoryName+"_joined", true, true)
+	juiceStartTime := time.Now()
+	handleJuice(JuiceExeFileName, 4, "join", directoryName+"_joined", true, true)
+	juiceExecutionTime := time.Since(juiceStartTime).Milliseconds()
+	fmt.Printf("Juice execution time for join: %vms\n", juiceExecutionTime)
 	sdfs.HandleGetFile(directoryName+"_joined", directoryName+"_joined")
 	// If post processing of the joined file is needed, add at below
+	joinExecutionTime := time.Since(joinStartTime).Milliseconds()
+	fmt.Printf("Join execution time: %vms\n", joinExecutionTime)
 }
