@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 )
@@ -120,69 +121,56 @@ func runExecutableFileOnSingleInputFile(mapleExePath string, fileLine *pb.FileLi
 	}
 	defer inputFile.Close()
 	scanner := bufio.NewScanner(inputFile)
+	lines := make([]string, 0)
+	mapleReadInputStartTime := time.Now()
 	for scanner.Scan() {
 		if currentLine >= startLine && currentLine <= endLine {
-			line := scanner.Text()
-			cmd := exec.Command("python3", mapleExePath)
-			// Map exe's input will have information about which sdfs file this line is coming from before the ## sign
-			cmd.Stdin = strings.NewReader(file + "##" + line)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				fmt.Printf("Error executing script on line %d: %s\n", currentLine, err)
-				continue
-			}
-			kvPairs := strings.Split(string(output), "\n")
-			for _, kvPair := range kvPairs {
-				kv := strings.Split(kvPair, ":")
-				if len(kv) != 2 {
-					continue
-				}
-				key := kv[0]
-				value := kv[1]
-				KVCollection[key] = append(KVCollection[key], value)
-			}
-			// fmt.Printf("Output from line %d: %s\n", currentLine, string(output))
+			line := file + "##" + scanner.Text()
+			lines = append(lines, line)
 		}
 		currentLine++
 		if currentLine > endLine {
 			break
 		}
 	}
+	mapleReadInputExecutionTime := time.Since(mapleReadInputStartTime).Milliseconds()
+	fmt.Printf("Maple read input file: %v, execution time: %vms\n", file, mapleReadInputExecutionTime)
+
 	if err := scanner.Err(); err != nil {
 		fmt.Println("Error reading from input file:", err)
 		return nil, err
 	}
-	// err = writeKVToFile(KVCollection)
-	// if err != nil {
-	// 	fmt.Println("Error writing to KV Collection to files:", err)
-	// 	return err
-	// }
+
+	mapleProgramStartTime := time.Now()
+	cmd := exec.Command("python3", mapleExePath)
+
+	// Map exe's input will have information about which sdfs file this line is coming from before the ## sign
+	cmd.Stdin = strings.NewReader(strings.Join(lines, "\n"))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("Error executing maple script on %s\n", err)
+		fmt.Printf("Error output: %s\n", output)
+		return nil, err
+	}
+	mapleProgramExecutionTime := time.Since(mapleProgramStartTime).Milliseconds()
+	fmt.Printf("Maple program on input file: %v execution time: %vms\n", file, mapleProgramExecutionTime)
+	kvPairs := strings.Split(string(output), "\n")
+	//remove the last empty line
+	kvPairs = kvPairs[:len(kvPairs)-1]
+	for _, kvPair := range kvPairs {
+		kv := strings.SplitN(kvPair, ":", 2)
+		if len(kv) < 2 {
+			err = fmt.Errorf("error parsing output line %s", kvPair)
+			fmt.Println(err)
+			return nil, err
+		}
+		key := kv[0]
+		value := kv[1]
+		KVCollection[key] = append(KVCollection[key], value)
+	}
 
 	return KVCollection, nil
 }
-
-// func writeKVToFile(KVCollection map[string][]string) error {
-// 	for key, values := range KVCollection {
-// 		fileName := key
-// 		fPath := filepath.Join(MAPLE_INTERMEDIATE_FILES_FOLDER, fileName)
-// 		// Open the file if it exists, or create it if it doesn't
-// 		file, err := os.OpenFile(fPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-// 		if err != nil {
-// 			fmt.Printf("Error opening or creating file for key %s: %s\n", key, err)
-// 			return err
-// 		}
-// 		defer file.Close()
-
-// 		for _, value := range values {
-// 			_, err := file.WriteString(fmt.Sprintf("{%s:%s}\n", key, value))
-// 			if err != nil {
-// 				fmt.Printf("Error writing to file for key %s: %s\n", key, err)
-// 				return err
-// 			}
-// 		}
-// 	}
-// 	return nil
-// }
 
 func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecRequest) (*pb.JuiceExecResponse, error) {
 	// Extract request fields
@@ -211,28 +199,27 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 			return nil, err
 		}
 
-		key := ""
-		values := "" // todo: value set might be too big, move it to disk if possible
+		key := "" // todo: value set might be too big, move it to disk if possible
 		// Read file line by line
+		var builder strings.Builder
 		scanner := bufio.NewScanner(file)
+		juiceReadInputStartTime := time.Now()
 		for scanner.Scan() {
 			line := scanner.Text()
 			// Split the line into key and value
-			parts := strings.Split(line, ":")
-			if len(parts) == 2 {
-				key = parts[0]
-				value := parts[1]
-
-				values += value + "::"
-			} else {
-				fmt.Println("Invalid line format:", line)
-				return nil, errors.New("Invalid line format:" + line)
-			}
+			parts := strings.SplitN(line, ":", 2)
+			key = parts[0]
+			value := parts[1]
+			builder.WriteString(value)
+			builder.WriteString("::")
 		}
-
-		valuesStr := values[:len(values)-2] // remove the last deliemeter (::)
+		juiceReadInputExecutionTime := time.Since(juiceReadInputStartTime).Milliseconds()
+		fmt.Printf("Juice read input file: %v, execution time: %vms\n", inputFilename, juiceReadInputExecutionTime)
+		valuesStr := builder.String()[:builder.Len()-2] // remove the last deliemeter (::)
 		programInputStr := fmt.Sprintf("%s:%s", key, valuesStr)
 		// Give value set to the juice task executable
+
+		juiceProgramStartTime := time.Now()
 		cmd := exec.Command("python3", juiceProgram)
 		cmd.Stdin = strings.NewReader(programInputStr)
 		output, err := cmd.CombinedOutput()
@@ -240,7 +227,8 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 			fmt.Printf("Error executing script on line %s: %s\n", programInputStr, err)
 			return nil, err
 		}
-
+		juiceProgramExecutionTime := time.Since(juiceProgramStartTime).Milliseconds()
+		fmt.Printf("Juice program execution on file: %v, execution time: %vms\n", inputFilename, juiceProgramExecutionTime)
 		// Write the parsed key: [values set] into the temp file
 		f.Write(output)
 	}
@@ -297,6 +285,7 @@ func appendAllIntermediateResultToSDFS(KVCollection map[string][]string, prefix 
 	// Iterate over the directory entries and delete each file.
 	for key, values := range KVCollection {
 		var content string
+		fmt.Printf("value length: %d\n", len(values))
 		for _, v := range values {
 			content += fmt.Sprintf("%s:%s\n", key, v)
 		}

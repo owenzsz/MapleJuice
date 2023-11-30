@@ -414,7 +414,9 @@ func StartSDFSServer() {
 	if err != nil {
 		fmt.Printf("failed to listen: %v\n", err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.MaxRecvMsgSize(1024 * 1024 * 1024),
+	)
 	pb.RegisterSDFSServer(s, &SDFSServer{})
 	if err := s.Serve(lis); err != nil {
 		fmt.Printf("failed to serve: %v\n", err)

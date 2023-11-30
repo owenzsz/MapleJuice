@@ -12,16 +12,16 @@ import (
 )
 
 // Helper function to randomly select <= NUM nodes to gossip to
-func RandomlySelectNodes(num int, excludeKeys ...string) []*Node {
+func RandomlySelectNodes(num int, excludeNodeAddrs ...string) []*Node {
 
 	excludeMap := make(map[string]bool)
-	for _, key := range excludeKeys {
+	for _, key := range excludeNodeAddrs {
 		excludeMap[key] = true
 	}
 
 	keys := make([]string, 0, len(NodeInfoList))
-	for k := range NodeInfoList {
-		if excludeMap[k] {
+	for k, nodeInfo := range NodeInfoList {
+		if excludeMap[nodeInfo.NodeAddr] {
 			continue
 		}
 		keys = append(keys, k)

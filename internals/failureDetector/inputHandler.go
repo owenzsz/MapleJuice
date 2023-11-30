@@ -81,7 +81,7 @@ func HandleLeave() {
 	NodeInfoList[LOCAL_NODE_KEY].Status = Left
 	NodeInfoList[LOCAL_NODE_KEY].SeqNo++
 	leaveMessage := newMessageOfType(pb.GroupMessage_LEAVE)
-	selectedNodes := RandomlySelectNodes(NUM_NODES_TO_GOSSIP, LOCAL_NODE_KEY)
+	selectedNodes := RandomlySelectNodes(NUM_NODES_TO_GOSSIP, GetAddrFromNodeKey(LOCAL_NODE_KEY))
 	SendGossip(leaveMessage, selectedNodes)
 	NodeInfoList = nil
 	LOCAL_NODE_KEY = ""
