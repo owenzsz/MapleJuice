@@ -164,6 +164,7 @@ func generateFilterMapleExeFileWithRegex(regex string, schema string, field stri
 	pythonScript := fmt.Sprintf(`
 import re
 import sys
+import csv
 
 schema = "%s".split(',')
 field = "%s"
@@ -171,7 +172,9 @@ regex = re.compile(r"%s")
 
 def process_line(line):
 	line = line.strip().split("##")[1]
-	data = dict(zip(schema, line.strip().split(',')))
+	reader = csv.reader([line.strip()])
+	fields = next(reader)
+	data = dict(zip(schema, fields))
 	if field in data and regex.search(data[field]):
 		print(f"key:{line}")
 
@@ -200,6 +203,7 @@ if __name__ == "__main__":
 func generateJoinMapleExeFile(table1 string, column1 string, schema1 string, table2 string, column2 string, schema2 string) (string, error) {
 	pythonScript := fmt.Sprintf(`
 import sys
+import csv
 
 dataset1 = "%s"
 dataset2 = "%s"
@@ -215,12 +219,16 @@ def process_line(line):
 	row = line_splitted[1]
 
 	if dataset == dataset1:
-		data = dict(zip(schema1, row.strip().split(',')))
+		reader = csv.reader([row.strip()])
+		fields = next(reader)
+		data = dict(zip(schema1, fields))
 		if col_name1 in data:
 			col_value = data[col_name1]
 			print(f"{col_value}:{dataset}->{row}")
 	elif dataset == dataset2:
-		data = dict(zip(schema2, row.strip().split(',')))
+		reader = csv.reader([row.strip()])
+		fields = next(reader)
+		data = dict(zip(schema2, fields))
 		if col_name2 in data:
 			col_value = data[col_name2]
 			print(f"{col_value}:{dataset}->{row}")
@@ -305,6 +313,7 @@ def process_line(line):
 if __name__ == "__main__":
     for line in sys.stdin:
         process_line(line)
+
 `
 	// Write the Python script to a file
 	fileName := "SQL_join_reduce.py"
