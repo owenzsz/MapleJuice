@@ -110,6 +110,7 @@ func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePar
 	// Get all intermediate files with filePrefix, the returning list is sorted
 	intermediateFiles := getAndSortAllFilesWithPrefix(filePrefix)
 
+	numJuicer = global.Min(numJuicer, len(intermediateFiles))
 	// Randomly get numJuicer number of VMs
 	selectedNode := fd.RandomlySelectNodes(numJuicer, global.GetLeaderAddress())
 

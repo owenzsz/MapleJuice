@@ -185,11 +185,11 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 
 	// Create a temp file holding local aggregate results for all assigned keys
 
-	f, err := os.Create("juice_local_result")
+	_, err := os.Create("juice_local_result")
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(f.Name())
+	// defer os.Remove(f.Name())
 
 	// make the parsing job concurrent, the file IO can be sequential and that's fine
 	for _, inputFilename := range in.InputIntermFiles {
@@ -294,12 +294,18 @@ func appendAllIntermediateResultToSDFS(KVCollection map[string][]string, prefix 
 		for _, v := range values {
 			content += fmt.Sprintf("%s:%s\n", key, v)
 		}
-		sdfsIntermediateFileName := fmt.Sprintf("%s_%s", prefix, key)
+		sdfsIntermediateFileName := fmt.Sprintf("%s_%s", prefix, sanitizeKey(key))
 		fmt.Printf("Trying to appended to SDFS file %s\n", sdfsIntermediateFileName)
 		sdfs.HandleAppendFile(sdfsIntermediateFileName, content, false)
 	}
 
 	return nil
+}
+
+func sanitizeKey(key string) string {
+	cleanedKey := strings.ReplaceAll(key, " ", "@")
+	cleanedKey = strings.ReplaceAll(cleanedKey, "/", "_")
+	return cleanedKey
 }
 
 func StartMapleJuiceServer() {
