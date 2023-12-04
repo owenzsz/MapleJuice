@@ -112,7 +112,7 @@ func runExecutableFileOnSingleInputFile(mapleExePath string, fileLine *pb.FileLi
 	file := fileLine.Filename
 	startLine := int(fileLine.Range.Start)
 	endLine := int(fileLine.Range.End)
-	fmt.Printf("Running maple executable on file %s, line %d to %d\n", file, startLine, endLine)
+	mjCustomLog(true, "Running maple executable on file %s, line %d to %d\n", file, startLine, endLine)
 	currentLine := 0
 	inputFile, err := os.Open(file)
 	if err != nil {
@@ -134,7 +134,7 @@ func runExecutableFileOnSingleInputFile(mapleExePath string, fileLine *pb.FileLi
 		}
 	}
 	mapleReadInputExecutionTime := time.Since(mapleReadInputStartTime).Milliseconds()
-	fmt.Printf("Maple read input file: %v, execution time: %vms\n", file, mapleReadInputExecutionTime)
+	mjCustomLog(true, "Maple read input file: %v, execution time: %vms\n", file, mapleReadInputExecutionTime)
 
 	if err := scanner.Err(); err != nil {
 		fmt.Println("Error reading from input file:", err)
@@ -153,7 +153,7 @@ func runExecutableFileOnSingleInputFile(mapleExePath string, fileLine *pb.FileLi
 		return nil, err
 	}
 	mapleProgramExecutionTime := time.Since(mapleProgramStartTime).Milliseconds()
-	fmt.Printf("Maple program on input file: %v execution time: %vms\n", file, mapleProgramExecutionTime)
+	mjCustomLog(true, "Maple program on input file: %v execution time: %vms\n", file, mapleProgramExecutionTime)
 	kvPairs := strings.Split(string(output), "\n")
 	//remove the last empty line
 	kvPairs = kvPairs[:len(kvPairs)-1]
@@ -214,7 +214,7 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 			builder.WriteString("::")
 		}
 		juiceReadInputExecutionTime := time.Since(juiceReadInputStartTime).Milliseconds()
-		fmt.Printf("Juice read input file: %v, execution time: %vms\n", inputFilename, juiceReadInputExecutionTime)
+		mjCustomLog(true, "Juice read input file: %v, execution time: %vms\n", inputFilename, juiceReadInputExecutionTime)
 		valuesStr := builder.String()[:builder.Len()-2] // remove the last deliemeter (::)
 		programInputStr := fmt.Sprintf("%s:%s", key, valuesStr)
 		// Give value set to the juice task executable
@@ -230,7 +230,7 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 		}
 
 		juiceProgramExecutionTime := time.Since(juiceProgramStartTime).Milliseconds()
-		fmt.Printf("Juice program execution on file: %v, execution time: %vms\n", inputFilename, juiceProgramExecutionTime)
+		mjCustomLog(true, "Juice program execution on file: %v, execution time: %vms\n", inputFilename, juiceProgramExecutionTime)
 		// Write the parsed key: [values set] into the temp file
 		// f.Write(output)
 	}

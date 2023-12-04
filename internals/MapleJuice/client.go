@@ -69,7 +69,7 @@ func sendMapleRequestToWorkers(assignments map[string][]*pb.FileLines, mapleExeP
 		return fmt.Errorf("some maple tasks failed: %v", mapleErrors)
 	}
 
-	fmt.Printf("Successfully finished excuting maple command \n")
+	mjCustomLog(true, "Successfully finished excuting maple command \n")
 	return nil
 }
 
@@ -329,7 +329,7 @@ func handleSQLFilter(dataset string, field string, regex string) {
 
 	handleMaple(mapleExeFileName, 4, intermediatePrefix, dataset)
 	mapleExecutionTime := time.Since(mapleStartTime).Milliseconds()
-	fmt.Printf("Maple execution time for filter: %vms\n", mapleExecutionTime)
+	mjCustomLog(true, "Maple execution time for filter: %vms\n", mapleExecutionTime)
 	juiceExeFileName, err := generateJuiceFilterExeFile()
 	if err != nil {
 		fmt.Printf("Error generating juice filter exe file: %v\n", err)
@@ -341,10 +341,10 @@ func handleSQLFilter(dataset string, field string, regex string) {
 	resultFileName := "res_" + strconv.Itoa(rand.Intn(10000))
 	handleJuice(juiceExeFileName, 4, intermediatePrefix, resultFileName, true, true)
 	juiceExecutionTime := time.Since(juiceStartTime).Milliseconds()
-	fmt.Printf("Juice execution time for filter: %vms\n", juiceExecutionTime)
+	mjCustomLog(true, "Juice execution time for filter: %vms\n", juiceExecutionTime)
 	sdfs.HandleGetFile(resultFileName, dataset+"_filtered")
 	filterExecutionTime := time.Since(filterStartTime).Milliseconds()
-	fmt.Printf("Filter execution time: %vms\n", filterExecutionTime)
+	mjCustomLog(true, "Filter execution time: %vms\n", filterExecutionTime)
 }
 
 func handleSQLJoin(table1 string, column1 string, table2 string, column2 string, directoryName string) {

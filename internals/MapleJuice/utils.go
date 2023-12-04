@@ -8,11 +8,13 @@ import (
 	pb "cs425-mp/protobuf"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func calculateMapleWorkload(files []string, numMaples int) (int, error) {
@@ -421,4 +423,14 @@ func longestCommonPrefix(strs []string) string {
 	}
 
 	return commonPrefix
+}
+
+// helper function to write log
+func mjCustomLog(printToStdout bool, format string, v ...interface{}) {
+	msg := fmt.Sprintf(format, v...)
+	formattedMsg := fmt.Sprintf("[%v] %s\n", time.Now().Format("2006-01-02 15:04:05"), msg)
+	if printToStdout {
+		fmt.Print(formattedMsg)
+	}
+	log.Printf(formattedMsg)
 }
