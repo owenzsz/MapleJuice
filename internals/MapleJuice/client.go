@@ -7,7 +7,9 @@ import (
 	pb "cs425-mp/protobuf"
 	"errors"
 	"fmt"
+	"math/rand"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -321,7 +323,11 @@ func handleSQLFilter(dataset string, field string, regex string) {
 	filterStartTime := time.Now()
 	sdfs.HandlePutFile(mapleExeFileName, mapleExeFileName)
 	mapleStartTime := time.Now()
-	handleMaple(mapleExeFileName, 4, "filter", dataset)
+
+	//generate a random string between 1 and 10000
+	intermediatePrefix := "filter" + strconv.Itoa(rand.Intn(10000))
+
+	handleMaple(mapleExeFileName, 4, intermediatePrefix, dataset)
 	mapleExecutionTime := time.Since(mapleStartTime).Milliseconds()
 	fmt.Printf("Maple execution time for filter: %vms\n", mapleExecutionTime)
 	juiceExeFileName, err := generateJuiceFilterExeFile()
@@ -330,10 +336,13 @@ func handleSQLFilter(dataset string, field string, regex string) {
 	}
 	sdfs.HandlePutFile(juiceExeFileName, juiceExeFileName)
 	juiceStartTime := time.Now()
-	handleJuice(juiceExeFileName, 4, "filter", dataset+"_filtered", true, true)
+
+	//generate a random string between 1 and 10000
+	resultFileName := "res_" + strconv.Itoa(rand.Intn(10000))
+	handleJuice(juiceExeFileName, 4, intermediatePrefix, resultFileName, true, true)
 	juiceExecutionTime := time.Since(juiceStartTime).Milliseconds()
 	fmt.Printf("Juice execution time for filter: %vms\n", juiceExecutionTime)
-	sdfs.HandleGetFile(dataset+"_filtered", dataset+"_filtered")
+	sdfs.HandleGetFile(resultFileName, dataset+"_filtered")
 	filterExecutionTime := time.Since(filterStartTime).Milliseconds()
 	fmt.Printf("Filter execution time: %vms\n", filterExecutionTime)
 }
