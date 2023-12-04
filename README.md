@@ -1,4 +1,4 @@
-# CS425-MP3
+# CS425-MP4
 
 ## Environment
 * golang 1.21
@@ -7,19 +7,16 @@
 ## How to Start 
 1. In directory `~/cs425-mp4` and **main** branch, run 
 ```
-rm *.log
-rm fetched*
-for i in {1..20}; do
-  dd if=/dev/urandom bs=1M count=20 | base64 > ${i}
-done
-dd if=/dev/zero of=1024  bs=1M  count=1024
-git pull && \
-go run cmd/cs425-mp3/main.go
-
+go run cmd/cs425-mp4/main.go
 ```
-The above commands will clean the log files, dummy files, re-generate 20 dummy files of 20MB in size, regenerate 1 dummy file of 1GB in size, and then pull the latest code and run the code.
 
-## Supported SDFS Commands
+## Supported Commands
+* maple <maple_exe> <num_maples> <sdfs_intermediate_filename_prefix> <sdfs_src_directory>
+* juice <juice_exe> <num_juices> <sdfs_intermediate_filename_prefix> <sdfs_dest_filename> delete_input={0,1} use_range_partition?={1,0}
+  * **Special Note:** for the last command line argument, 1 means use range partitioning and 0 means use hash partitioning
+* SQL Query: SELECT ALL FROM Dataset WHERE <regex condition>
+* SQL Query:  Given two Datasets D1 and D2: SELECT ALL FROM D1, D2 WHERE <one
+specific field’s value in a line of D1 = one specific field’s value in a line of D2>, e.g., “WHERE D1.name = D2.ID”
 * get [remote filename] [local filename]
 * put [local filename] [remote filename]
 * delete [remote filename]
