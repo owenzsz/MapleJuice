@@ -5,15 +5,14 @@ import (
 )
 
 const (
-	LOGGER_PORT          = "55555"
-	FD_PORT              = "55556"
-	SDFS_PORT            = "55557"
-	LEADER_ELECTION_PORT = "55558"
-	MAPLE_JUICE_PORT     = "55559"
+	LOGGER_PORT                   = "55555"
+	FD_PORT                       = "55556"
+	SDFS_PORT                     = "55557"
+	LEADER_ELECTION_PORT          = "55558"
+	MAPLE_JUICE_PORT              = "55559"
 	LEADER_STATE_REPLICATION_PORT = "55560"
 
-
-	QUORUM                = 3
+	QUORUM                = 5
 	RETRY_CONN_SLEEP_TIME = 3 * time.Second
 	RETRY_LOCK_SLEEP_TIME = 1 * time.Second
 )

@@ -228,7 +228,7 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 			fmt.Printf("Python output is %s\n", output)
 			return nil, err
 		}
-		
+
 		juiceProgramExecutionTime := time.Since(juiceProgramStartTime).Milliseconds()
 		fmt.Printf("Juice program execution on file: %v, execution time: %vms\n", inputFilename, juiceProgramExecutionTime)
 		// Write the parsed key: [values set] into the temp file
