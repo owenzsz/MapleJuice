@@ -315,7 +315,7 @@ func handleSQLFilter(dataset string, field string, regex string) {
 	filterStartTime := time.Now()
 	sdfs.HandlePutFile(mapleExeFileName, mapleExeFileName)
 	mapleStartTime := time.Now()
-	handleMaple(mapleExeFileName, 4, "filter", dataset)
+	handleMaple(mapleExeFileName, 9, "filter", dataset)
 	mapleExecutionTime := time.Since(mapleStartTime).Milliseconds()
 	fmt.Printf("Maple execution time for filter: %vms\n", mapleExecutionTime)
 	juiceExeFileName, err := generateJuiceFilterExeFile()
@@ -324,7 +324,7 @@ func handleSQLFilter(dataset string, field string, regex string) {
 	}
 	sdfs.HandlePutFile(juiceExeFileName, juiceExeFileName)
 	juiceStartTime := time.Now()
-	handleJuice(juiceExeFileName, 4, "filter", dataset+"_filtered", true, true)
+	handleJuice(juiceExeFileName, 9, "filter", dataset+"_filtered", true, true)
 	juiceExecutionTime := time.Since(juiceStartTime).Milliseconds()
 	fmt.Printf("Juice execution time for filter: %vms\n", juiceExecutionTime)
 	sdfs.HandleGetFile(dataset+"_filtered", dataset+"_filtered")
@@ -357,7 +357,7 @@ func handleSQLJoin(table1 string, column1 string, table2 string, column2 string,
 	joinStartTime := time.Now()
 	sdfs.HandlePutFile(MapleExeFileName, MapleExeFileName)
 	mapleStartTime := time.Now()
-	handleMaple(MapleExeFileName, 4, "join", directoryName)
+	handleMaple(MapleExeFileName, 9, "join", directoryName)
 	mapleExecutionTime := time.Since(mapleStartTime).Milliseconds()
 	fmt.Printf("Maple execution time for join: %vms\n", mapleExecutionTime)
 
@@ -367,7 +367,7 @@ func handleSQLJoin(table1 string, column1 string, table2 string, column2 string,
 	}
 	sdfs.HandlePutFile(JuiceExeFileName, JuiceExeFileName)
 	juiceStartTime := time.Now()
-	handleJuice(JuiceExeFileName, 4, "join", directoryName+"_joined", true, true)
+	handleJuice(JuiceExeFileName, 9, "join", directoryName+"_joined", true, true)
 	juiceExecutionTime := time.Since(juiceStartTime).Milliseconds()
 	fmt.Printf("Juice execution time for join: %vms\n", juiceExecutionTime)
 	sdfs.HandleGetFile(directoryName+"_joined", directoryName+"_joined")

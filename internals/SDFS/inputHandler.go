@@ -100,7 +100,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 		} else if command == "append" {
 			sdfsFileName := splitted[1]
 			content := splitted[2]
-			HandleAppendFile(sdfsFileName, content)
+			HandleAppendFile(sdfsFileName, content, false)
 		} else {
 			fmt.Println("Command Not Supported")
 		}

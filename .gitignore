@@ -36,3 +36,9 @@ go.work
 
 # Test files
 test*
+
+
+join_*
+
+table_*
+juice_local_result
