@@ -102,7 +102,7 @@ func ProcessUserInputInLoop(inputChan <-chan string) {
 		} else if command == "append" {
 			sdfsFileName := splitted[1]
 			content := splitted[2]
-			sdfs.HandleAppendFile(sdfsFileName, content)
+			sdfs.HandleAppendFile(sdfsFileName, content, false)
 		} else if command == "maple" {
 			mapleExe := splitted[1]
 			numMaples, err := strconv.Atoi(splitted[2])

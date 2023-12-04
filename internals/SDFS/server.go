@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -231,33 +233,48 @@ func (s *SDFSServer) AppendNewContent(ctx context.Context, in *pb.AppendNewConte
 			Success: true,
 		}, nil
 	}
-	fPath := filepath.Join(SDFS_PATH, in.FileName)
-	// If the file doesn't exist, create it, or append to the file
-	f, err := os.OpenFile(fPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		// Cannot find the file to be appended
-		fmt.Printf("cannot open file %s to append: %v\n", fPath, err)
+	if strings.Contains(in.Content, "_append_") {
+		// This is a append by filename specification, not a "string content"
+		srcFile := path.Join(SDFS_PATH, in.Content)
+		fPath := filepath.Join(SDFS_PATH, in.FileName)
+		appendCmd := exec.Command("bash", "-c", fmt.Sprintf("cat %s >> %s", srcFile, fPath))
+		_, err := appendCmd.CombinedOutput()
+		if err != nil {
+			return nil, err
+		}	
 		return &pb.AppendNewContentResponse{
-			Success: false,
+			Success: true,
+		}, nil 
+	} else {
+
+		fPath := filepath.Join(SDFS_PATH, in.FileName)
+		// If the file doesn't exist, create it, or append to the file
+		f, err := os.OpenFile(fPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			// Cannot find the file to be appended
+			fmt.Printf("cannot open file %s to append: %v\n", fPath, err)
+			return &pb.AppendNewContentResponse{
+				Success: false,
+			}, nil
+		}
+		if _, err := f.Write([]byte(in.Content)); err != nil {
+			// Cannot actually append the new content to the file
+			fmt.Printf("cannot append to file %s: %v\n", fPath, err)
+			return &pb.AppendNewContentResponse{
+				Success: false,
+			}, nil
+		}
+		if err := f.Close(); err != nil {
+			// Cannot close the appended file
+			fmt.Printf("cannot close the appended file %s: %v\n", fPath, err)
+			return &pb.AppendNewContentResponse{
+				Success: false,
+			}, nil
+		}
+		return &pb.AppendNewContentResponse{
+			Success: true,
 		}, nil
 	}
-	if _, err := f.Write([]byte(in.Content)); err != nil {
-		// Cannot actually append the new content to the file
-		fmt.Printf("cannot append to file %s: %v\n", fPath, err)
-		return &pb.AppendNewContentResponse{
-			Success: false,
-		}, nil
-	}
-	if err := f.Close(); err != nil {
-		// Cannot close the appended file
-		fmt.Printf("cannot close the appended file %s: %v\n", fPath, err)
-		return &pb.AppendNewContentResponse{
-			Success: false,
-		}, nil
-	}
-	return &pb.AppendNewContentResponse{
-		Success: true,
-	}, nil
 }
 
 func (s *SDFSServer) MultiPutFile(ctx context.Context, in *pb.MultiPutRequest) (*pb.MultiPutResponse, error) {

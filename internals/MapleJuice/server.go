@@ -185,13 +185,13 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 
 	// Create a temp file holding local aggregate results for all assigned keys
 
-	f, err := os.CreateTemp("", "juice_local_result")
+	f, err := os.Create("juice_local_result")
 	if err != nil {
 		return nil, err
 	}
 	defer os.Remove(f.Name())
 
-	// todo: make the parsing job concurrent, the file IO can be sequential and that's fine
+	// make the parsing job concurrent, the file IO can be sequential and that's fine
 	for _, inputFilename := range in.InputIntermFiles {
 		file, err := os.Open(inputFilename)
 		if err != nil {
@@ -199,7 +199,7 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 			return nil, err
 		}
 
-		key := "" // todo: value set might be too big, move it to disk if possible
+		key := "" // value set might be too big, move it to disk if possible
 		// Read file line by line
 		var builder strings.Builder
 		scanner := bufio.NewScanner(file)
@@ -222,23 +222,27 @@ func (s *MapleJuiceServer) JuiceExec(ctx context.Context, in *pb.JuiceExecReques
 		juiceProgramStartTime := time.Now()
 		cmd := exec.Command("python3", juiceProgram)
 		cmd.Stdin = strings.NewReader(programInputStr)
-		output, err := cmd.CombinedOutput()
+		output, err := cmd.CombinedOutput() // the python script will write its output to the file
 		if err != nil {
 			fmt.Printf("Error executing script on line %s: %s\n", programInputStr, err)
+			fmt.Printf("Python output is %s\n", output)
 			return nil, err
 		}
+		
 		juiceProgramExecutionTime := time.Since(juiceProgramStartTime).Milliseconds()
 		fmt.Printf("Juice program execution on file: %v, execution time: %vms\n", inputFilename, juiceProgramExecutionTime)
 		// Write the parsed key: [values set] into the temp file
-		f.Write(output)
+		// f.Write(output)
 	}
 
 	// Append (create if necessary) temp file content to destination global file
-	data, err := os.ReadFile(f.Name())
-	if err != nil {
-		fmt.Printf("cannot read the temporary file: %v\n", err)
-	}
-	sdfs.HandleAppendFile(dstFileName, string(data))
+	// data, err := os.ReadFile(f.Name())
+	// if err != nil {
+	// 	fmt.Printf("cannot read the temporary file: %v\n", err)
+	// }
+
+	// TODO: transfer by file instead of data
+	sdfs.HandleAppendFile(dstFileName, "juice_local_result", true)
 
 	return &pb.JuiceExecResponse{
 		Success: true,
@@ -261,6 +265,7 @@ func (s *MapleJuiceServer) Juice(ctx context.Context, in *pb.JuiceRequest) (*pb.
 
 	// var vmToInputFiles map[string]map[string]global.Empty
 	vmToInputFiles := createKeyAssignmentForJuicers(numJuicer, filePrefix, useRangePartition)
+	fmt.Printf("The Juice assignment is: %v\n", vmToInputFiles)
 	err := dispatchJuiceTasksToVMs(vmToInputFiles, juiceProgram, dstFileName)
 
 	if err != nil {
@@ -291,7 +296,7 @@ func appendAllIntermediateResultToSDFS(KVCollection map[string][]string, prefix 
 		}
 		sdfsIntermediateFileName := fmt.Sprintf("%s_%s", prefix, key)
 		fmt.Printf("Trying to appended to SDFS file %s\n", sdfsIntermediateFileName)
-		sdfs.HandleAppendFile(sdfsIntermediateFileName, content)
+		sdfs.HandleAppendFile(sdfsIntermediateFileName, content, false)
 	}
 
 	return nil
