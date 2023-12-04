@@ -161,14 +161,16 @@ func createKeyAssignmentForJuicers(numJuicer int, filePrefix string, useRangePar
 }
 
 func generateFilterMapleExeFileWithRegex(regex string, schema string, field string) (string, error) {
-	pythonScript := fmt.Sprintf(`
+	var pythonScript string
+	if field != "" {
+		pythonScript = fmt.Sprintf(`
 import re
 import sys
 import csv
 
 schema = "%s".split(',')
 field = "%s"
-regex = re.compile(r"%s")
+regex = re.compile(r%s)
 
 def process_line(line):
 	line = line.strip().split("##")[1]
@@ -180,8 +182,25 @@ def process_line(line):
 
 if __name__ == "__main__":
 	for line in sys.stdin:
-		process_line(line)		
-`, schema, field, regex)
+		process_line(line)
+	`, schema, field, regex)
+	} else {
+		pythonScript = fmt.Sprintf(`
+import re
+import sys
+
+regex = re.compile(%s)
+
+def process_line(line):
+	line = line.strip().split("##")[1]
+	if regex.search(line):
+		print(f"key:{line}")
+
+if __name__ == "__main__":
+	for line in sys.stdin:
+		process_line(line)
+	`, regex)
+	}
 
 	fileName := "SQL_filter_map.py"
 	file, err := os.Create(fileName)

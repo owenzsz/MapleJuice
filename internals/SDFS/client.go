@@ -383,7 +383,7 @@ func HandleAppendFile(sdfsFileName string, contentOrFileName string, isFile bool
 			fmt.Printf("Failed to transfer file: %v\n", err)
 		}
 		var lineCount int = 0
-		if (!isFile) {
+		if !isFile {
 			lineCount, err = global.CountStringLines(contentOrFileName)
 			if err != nil {
 				fmt.Printf("Failed to count lines: %v\n", err)
@@ -406,11 +406,11 @@ func HandleAppendFile(sdfsFileName string, contentOrFileName string, isFile bool
 			fmt.Printf("Failed to count lines: %v\n", contentOrFileName)
 		} else {
 			sendPutACKToLeader(lineCount, sdfsFileName, targetVMAddrs, false, true)
-			
+
 			putOperationTime := time.Since(startTime).Milliseconds()
 			fmt.Printf("Successfully append to SDFS file %s in %v ms\n", sdfsFileName, putOperationTime)
 		}
-		
+
 		conn.Close()
 		break
 	}
@@ -459,7 +459,7 @@ func callAppendEndpoint(contentOrFilename string, sdfsFileName string, targetHos
 	ctx, callCancel := context.WithTimeout(context.Background(), timeout)
 	defer callCancel()
 
-	if (isFile) {
+	if isFile {
 		targetHostName := getScpHostNameFromHostName(targetHostname)
 		remotePath := targetHostName + ":" + filepath.Join(SDFS_PATH, sdfsFileName+"_append_"+strconv.Itoa(version))
 		////limited the speed to 30MB/s
@@ -476,7 +476,7 @@ func callAppendEndpoint(contentOrFilename string, sdfsFileName string, targetHos
 			fmt.Printf("Transfer Command finished with error: %v\n", err)
 			return err
 		}
-		contentOrFilename = sdfsFileName+"_append_"+strconv.Itoa(version)
+		contentOrFilename = sdfsFileName + "_append_" + strconv.Itoa(version)
 	}
 
 	r, err := c.AppendNewContent(ctx, &pb.AppendNewContentRequest{

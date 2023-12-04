@@ -274,13 +274,19 @@ func handleSQL(query string) {
 }
 
 func matchFilterPattern(query string) (string, string, string, error) {
-	pattern := `SELECT ALL FROM (\w+) WHERE (\w+) REGEXP (.+)`
-	re := regexp.MustCompile(pattern)
+	patternREG := `SELECT ALL FROM (\w+) WHERE (\w+) REGEXP (.+)`
+	patternLine := `SELECT ALL FROM (\w+) WHERE (.+)`
+	re := regexp.MustCompile(patternREG)
 
 	// Match the pattern in the given sqlQuery
 	matches := re.FindStringSubmatch(query)
 	if len(matches) < 3 {
-		return "", "", "", fmt.Errorf("invalid filter query format")
+		re = regexp.MustCompile(patternLine)
+		matches = re.FindStringSubmatch(query)
+		if len(matches) < 2 {
+			return "", "", "", fmt.Errorf("invalid filter query format")
+		}
+		return matches[1], "", matches[2], nil
 	}
 
 	// Extracted groups: Dataset, Regex Condition
